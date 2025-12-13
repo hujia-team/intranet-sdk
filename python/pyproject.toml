@@ -1,0 +1,41 @@
+[project]
+name = "intranet-sdk"
+version = "0.1.1"
+description = "MiniEye Intranet API Python SDK - 用于访问内网系统API的Python客户端库"
+readme = "README.md"
+authors = [
+    { name = "niexiaonan", email = "niexiaonan@minieye.cc" }
+]
+requires-python = ">=3.8"
+dependencies = [
+    "requests>=2.31.0",
+    "python-dotenv>=1.0.0",
+]
+license = { text = "MIT" }
+keywords = ["intranet", "api", "sdk", "minieye"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+
+[project.urls]
+Homepage = "https://github.com/hujia-team/intranet-sdk"
+Repository = "https://github.com/hujia-team/intranet-sdk"
+Issues = "https://github.com/hujia-team/intranet-sdk/issues"
+
+[[tool.uv.index]]
+name = "minieye-pypi"
+url = "https://pypi.minieye.tech/"
+publish-url = "https://pypi.minieye.tech/"
+explicit = true
+
+[build-system]
+requires = ["uv_build>=0.8.17,<0.9.0"]
+build-backend = "uv_build"

@@ -44,3 +44,54 @@ logs/
 # Coverage files
 coverage.out
 coverage.html
+
+# Python files
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Python testing
+.pytest_cache/
+.tox/
+.coverage
+.coverage.*
+htmlcov/
+.hypothesis/
+
+# Python virtual environments
+.venv
+python/.venv
+.uv
+
+# Python IDE
+.python-version
+*.pyc
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.pyre/
+
+# uv
+.uv-cache/
+uv.lock
