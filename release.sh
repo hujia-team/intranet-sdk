@@ -150,13 +150,17 @@ go mod verify
 # 4. 检查Git状态
 echo "
 [步骤4] 检查Git状态..."
-if ! git diff --quiet; then
-    echo "警告: 存在未提交的更改，请先提交或隐藏更改"
-    read -p "是否继续发布？(y/N): " confirm
-    if [[ ! "$confirm" =~ ^[Yy]$ ]]; then
-        echo "发布已取消"
-        exit 1
-    fi
+# 检查工作区和暂存区是否有未提交的更改
+if ! git diff --quiet || ! git diff --cached --quiet; then
+    echo "❌ 错误: 存在未提交的更改"
+    echo ""
+    git status --short
+    echo ""
+    echo "请先提交所有更改后再发布版本："
+    echo "  git add ."
+    echo "  git commit -m \"your message\""
+    echo "  ./release.sh"
+    exit 1
 fi
 
 # 5. 创建Git标签（可选）
@@ -169,18 +173,20 @@ else
     echo "Git标签 $VERSION 创建成功"
 fi
 
-# 6. 推送标签到远程仓库（可选）
+# 6. 推送代码和标签到远程仓库
 echo "
-[步骤6] 推送标签到远程仓库..."
+[步骤6] 推送代码和标签到远程仓库..."
 if [ "$DRY_RUN" = true ]; then
-    echo "[DRY-RUN] 跳过交互式推送确认"
+    echo "[DRY-RUN] 模拟将要执行: git push origin"
     echo "[DRY-RUN] 模拟将要执行: git push origin \"$VERSION\""
 else
-    read -p "是否推送标签到远程仓库？(y/N): " push_tag
-    if [[ "$push_tag" =~ ^[Yy]$ ]]; then
-        git push origin "$VERSION"
-        echo "标签 $VERSION 已推送至远程仓库"
-    fi
+    # 获取当前分支名
+    CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
+    echo "推送代码到分支: $CURRENT_BRANCH"
+    git push origin "$CURRENT_BRANCH"
+    echo "推送标签: $VERSION"
+    git push origin "$VERSION"
+    echo "✅ 代码和标签 $VERSION 已成功推送至远程仓库"
 fi
 
 # 7. 验证模块发布

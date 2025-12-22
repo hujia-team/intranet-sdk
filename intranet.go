@@ -11,6 +11,7 @@ type Client struct {
 	client    *client.HTTPClient
 	User      services.UserService
 	Connector services.ConnectorService
+	ApiKey    services.ApiKeyService
 }
 
 // NewClient creates a new MiniEye Intranet API client with the given options.
@@ -31,10 +32,14 @@ func NewClient(options ...Option) (*Client, error) {
 	// Create connector service
 	connectorService := services.NewConnectorService(httpClient)
 
+	// Create apikey service
+	apiKeyService := services.NewApiKeyService(httpClient)
+
 	return &Client{
 		client:    httpClient,
 		User:      userService,
 		Connector: connectorService,
+		ApiKey:    apiKeyService,
 	}, nil
 }
 

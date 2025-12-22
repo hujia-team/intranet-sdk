@@ -77,6 +77,20 @@ export INTRANET_ACCESS_KEY_SECRET=your_access_key_secret
 go run examples/connector_example.go
 ```
 
+#### 3. ApiKey 示例 (apikey_example.go)
+
+演示如何使用 ApiKey 管理功能,包括获取、创建、更新和删除 ApiKey。
+
+**运行方法：**
+```bash
+# 设置环境变量
+export INTRANET_ACCESS_KEY_ID=your_access_key_id
+export INTRANET_ACCESS_KEY_SECRET=your_access_key_secret
+
+# 运行示例
+go run examples/apikey_example.go
+```
+
 ### 错误处理
 
 SDK使用自定义的错误类型返回详细的错误信息：
