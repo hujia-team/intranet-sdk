@@ -23,6 +23,9 @@ type ApiKeyService interface {
 
 	// GetApiKeyByID gets an API key by ID.
 	GetApiKeyByID(id uint64) (*models.ApiKeyInfo, error)
+
+	// GetSub2ApiKey gets the sub2api API key for current user.
+	GetSub2ApiKey() (*models.ApiKeyInfo, error)
 }
 
 // apiKeyService implements the ApiKeyService interface.
@@ -174,5 +177,29 @@ func (s *apiKeyService) GetApiKeyByID(id uint64) (*models.ApiKeyInfo, error) {
 	}
 
 	utils.Debug("Got API key successfully")
+	return &response.Data, nil
+}
+
+// GetSub2ApiKey implements the ApiKeyService.GetSub2ApiKey method.
+func (s *apiKeyService) GetSub2ApiKey() (*models.ApiKeyInfo, error) {
+	var response struct {
+		Code int              `json:"code"`
+		Msg  string           `json:"msg"`
+		Data models.ApiKeyInfo `json:"data"`
+	}
+
+	utils.Debug("Getting sub2api API key for current user")
+	err := s.httpClient.Post("/aiplorer/api_key/sub", nil, &response)
+	if err != nil {
+		utils.Error("Failed to get sub2api API key: %v", err)
+		return nil, utils.NewAPIError("failed to get sub2api API key", err)
+	}
+
+	if response.Code != 0 {
+		utils.Error("API error: %s", response.Msg)
+		return nil, utils.NewAPIError(response.Msg, nil)
+	}
+
+	utils.Debug("Got sub2api API key successfully")
 	return &response.Data, nil
 }
