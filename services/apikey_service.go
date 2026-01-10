@@ -189,7 +189,7 @@ func (s *apiKeyService) GetSub2ApiKey() (*models.ApiKeyInfo, error) {
 	}
 
 	utils.Debug("Getting sub2api API key for current user")
-	err := s.httpClient.Post("/aiplorer/api_key/sub", nil, &response)
+	err := s.httpClient.Post("/aiplorer/sub2api/api_key", nil, &response)
 	if err != nil {
 		utils.Error("Failed to get sub2api API key: %v", err)
 		return nil, utils.NewAPIError("failed to get sub2api API key", err)
