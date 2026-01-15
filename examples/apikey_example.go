@@ -142,5 +142,71 @@ func main() {
 		}
 	}
 
+	// 6. 获取 Sub2Api 订阅组功能演示
+	fmt.Println("\n6. 获取可用的订阅组列表...")
+	availableGroups, err := client.ApiKey.GetAvailableGroups()
+	if err != nil {
+		log.Printf("获取可用订阅组失败: %v", err)
+	} else {
+		fmt.Printf("   可用订阅组数量: %d\n", len(availableGroups.Data))
+		for i, group := range availableGroups.Data {
+			fmt.Printf("   [%d] ID: %d, Name: %s\n", i+1, group.ID, group.Name)
+			if group.Description != "" {
+				fmt.Printf("       Description: %s\n", group.Description)
+			}
+			fmt.Printf("       权限 - Owner: %v, Admin: %v, Read: %v, Write: %v, Use: %v\n",
+				group.IsOwner, group.IsAdmin, group.HasRead, group.HasWrite, group.HasUse)
+			if group.DailyLimit > 0 {
+				fmt.Printf("       日配额 - Limit: %d, Used: %d\n", group.DailyLimit, group.DailyUsed)
+			}
+			if group.WeeklyLimit > 0 {
+				fmt.Printf("       周配额 - Limit: %d, Used: %d\n", group.WeeklyLimit, group.WeeklyUsed)
+			}
+		}
+	}
+	fmt.Println()
+
+	// 7. 获取当前 API Key 绑定的订阅组
+	fmt.Println("\n7. 获取当前用户 API Key 绑定的订阅组...")
+	currentGroup, err := client.ApiKey.GetCurrentGroup()
+	if err != nil {
+		log.Printf("获取当前订阅组失败: %v", err)
+	} else {
+		if currentGroup.Group != nil {
+			fmt.Printf("   当前绑定的订阅组: %s (ID: %d)\n", currentGroup.Group.Name, currentGroup.Group.ID)
+			if currentGroup.Group.Description != "" {
+				fmt.Printf("   Description: %s\n", currentGroup.Group.Description)
+			}
+		} else {
+			fmt.Println("   当前未绑定任何订阅组")
+		}
+	}
+	fmt.Println()
+
+	// 8. 切换订阅组 (示例 - 需要有可用的订阅组)
+	if availableGroups != nil && len(availableGroups.Data) > 0 {
+		targetGroupID := availableGroups.Data[0].ID
+		fmt.Printf("\n8. 切换订阅组 (目标订阅组 ID: %d)...\n", targetGroupID)
+
+		switchReq := &models.SwitchGroupReq{
+			GroupID: targetGroupID,
+		}
+
+		switchResp, err := client.ApiKey.SwitchGroup(switchReq)
+		if err != nil {
+			log.Printf("切换订阅组失败: %v", err)
+		} else {
+			if switchResp.Success {
+				fmt.Println("   切换成功!")
+				if switchResp.Group != nil {
+					fmt.Printf("   新订阅组: %s (ID: %d)\n", switchResp.Group.Name, switchResp.Group.ID)
+				}
+			} else {
+				fmt.Printf("   切换失败: %s\n", switchResp.Message)
+			}
+		}
+		fmt.Println()
+	}
+
 	fmt.Println("\n=== 演示完成 ===")
 }

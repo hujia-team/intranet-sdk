@@ -141,3 +141,87 @@ type ApiKeyListResp struct {
 	// List | ApiKey列表
 	List []ApiKeyInfo `json:"list"`
 }
+
+// Sub2ApiGroupInfo Sub2Api 分组信息
+type Sub2ApiGroupInfo struct {
+	// ID | 分组ID
+	ID int64 `json:"id"`
+
+	// Name | 分组名称
+	Name string `json:"name"`
+
+	// Description | 分组描述
+	Description string `json:"description"`
+
+	// CreatedAt | 创建时间
+	CreatedAt string `json:"createdAt"`
+
+	// UpdatedAt | 更新时间
+	UpdatedAt string `json:"updatedAt"`
+
+	// Domain | 域
+	Domain string `json:"domain"`
+
+	// Sub | 主体
+	Sub string `json:"sub"`
+
+	// SubType | 主体类型
+	SubType string `json:"subType"`
+
+	// IsOwner | 是否是所有者
+	IsOwner bool `json:"isOwner,optional"`
+
+	// IsAdmin | 是否是管理员
+	IsAdmin bool `json:"isAdmin,optional"`
+
+	// HasRead | 是否有读权限
+	HasRead bool `json:"hasRead,optional"`
+
+	// HasWrite | 是否有写权限
+	HasWrite bool `json:"hasWrite,optional"`
+
+	// HasUse | 是否有使用权限
+	HasUse bool `json:"hasUse,optional"`
+
+	// DailyLimit | 日配额限制（单位：分，即美分）
+	DailyLimit int64 `json:"dailyLimit,optional"`
+
+	// DailyUsed | 日配额已使用（单位：分）
+	DailyUsed int64 `json:"dailyUsed,optional"`
+
+	// WeeklyLimit | 周配额限制（单位：分）
+	WeeklyLimit int64 `json:"weeklyLimit,optional"`
+
+	// WeeklyUsed | 周配额已使用（单位：分）
+	WeeklyUsed int64 `json:"weeklyUsed,optional"`
+}
+
+// GetAvailableGroupsResp 获取可用分组响应
+type GetAvailableGroupsResp struct {
+	// Data | 分组列表
+	Data []Sub2ApiGroupInfo `json:"data"`
+}
+
+// GetCurrentGroupResp 获取当前分组响应
+type GetCurrentGroupResp struct {
+	// Group | 当前分组（可能为空）
+	Group *Sub2ApiGroupInfo `json:"group,optional"`
+}
+
+// SwitchGroupReq 切换分组请求
+type SwitchGroupReq struct {
+	// GroupID | 目标分组 ID
+	GroupID int64 `json:"groupId"`
+}
+
+// SwitchGroupResp 切换分组响应
+type SwitchGroupResp struct {
+	// Success | 是否成功
+	Success bool `json:"success"`
+
+	// Group | 切换后的分组信息
+	Group *Sub2ApiGroupInfo `json:"group,optional"`
+
+	// Message | 消息
+	Message string `json:"message,optional"`
+}

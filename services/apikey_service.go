@@ -26,6 +26,15 @@ type ApiKeyService interface {
 
 	// GetSub2ApiKey gets the sub2api API key for current user.
 	GetSub2ApiKey() (*models.ApiKeyInfo, error)
+
+	// GetAvailableGroups gets available subscription groups for current user.
+	GetAvailableGroups() (*models.GetAvailableGroupsResp, error)
+
+	// GetCurrentGroup gets the current subscription group bound to the user's API key.
+	GetCurrentGroup() (*models.GetCurrentGroupResp, error)
+
+	// SwitchGroup switches the subscription group for an API key.
+	SwitchGroup(req *models.SwitchGroupReq) (*models.SwitchGroupResp, error)
 }
 
 // apiKeyService implements the ApiKeyService interface.
@@ -201,5 +210,79 @@ func (s *apiKeyService) GetSub2ApiKey() (*models.ApiKeyInfo, error) {
 	}
 
 	utils.Debug("Got sub2api API key successfully")
+	return &response.Data, nil
+}
+
+// GetAvailableGroups implements the ApiKeyService.GetAvailableGroups method.
+func (s *apiKeyService) GetAvailableGroups() (*models.GetAvailableGroupsResp, error) {
+	var response struct {
+		Code int                        `json:"code"`
+		Msg  string                     `json:"msg"`
+		Data []models.Sub2ApiGroupInfo `json:"data"`
+	}
+
+	utils.Debug("Getting available subscription groups")
+	err := s.httpClient.Post("/aiplorer/sub2api/group/available", nil, &response)
+	if err != nil {
+		utils.Error("Failed to get available groups: %v", err)
+		return nil, utils.NewAPIError("failed to get available groups", err)
+	}
+
+	if response.Code != 0 {
+		utils.Error("API error: %s", response.Msg)
+		return nil, utils.NewAPIError(response.Msg, nil)
+	}
+
+	utils.Debug("Got available groups successfully, count: %d", len(response.Data))
+	return &models.GetAvailableGroupsResp{
+		Data: response.Data,
+	}, nil
+}
+
+// GetCurrentGroup implements the ApiKeyService.GetCurrentGroup method.
+func (s *apiKeyService) GetCurrentGroup() (*models.GetCurrentGroupResp, error) {
+	var response struct {
+		Code int                         `json:"code"`
+		Msg  string                      `json:"msg"`
+		Data models.GetCurrentGroupResp `json:"data"`
+	}
+
+	utils.Debug("Getting current group for user's API key")
+	err := s.httpClient.Post("/aiplorer/sub2api/group/current", nil, &response)
+	if err != nil {
+		utils.Error("Failed to get current group: %v", err)
+		return nil, utils.NewAPIError("failed to get current group", err)
+	}
+
+	if response.Code != 0 {
+		utils.Error("API error: %s", response.Msg)
+		return nil, utils.NewAPIError(response.Msg, nil)
+	}
+
+	utils.Debug("Got current group successfully")
+	return &response.Data, nil
+}
+
+// SwitchGroup implements the ApiKeyService.SwitchGroup method.
+func (s *apiKeyService) SwitchGroup(req *models.SwitchGroupReq) (*models.SwitchGroupResp, error) {
+	var response struct {
+		Code int                     `json:"code"`
+		Msg  string                  `json:"msg"`
+		Data models.SwitchGroupResp `json:"data"`
+	}
+
+	utils.Debug("Switching group to group ID: %d", req.GroupID)
+	err := s.httpClient.Post("/aiplorer/sub2api/group/switch", req, &response)
+	if err != nil {
+		utils.Error("Failed to switch group: %v", err)
+		return nil, utils.NewAPIError("failed to switch group", err)
+	}
+
+	if response.Code != 0 {
+		utils.Error("API error: %s", response.Msg)
+		return nil, utils.NewAPIError(response.Msg, nil)
+	}
+
+	utils.Debug("Switched group successfully")
 	return &response.Data, nil
 }
