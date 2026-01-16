@@ -86,18 +86,21 @@ func TestGetAvailableGroups(t *testing.T) {
 		t.Logf("  Description: %s", group.Description)
 
 		// 配额信息
+
+		t.Logf("  日配额:")
+		t.Logf("    Limit: %d 分 (%.2f 美元)", group.DailyLimit, float64(group.DailyLimit)/100)
+		t.Logf("    Used: %d 分 (%.2f 美元)", group.DailyUsed, float64(group.DailyUsed)/100)
 		if group.DailyLimit > 0 {
-			t.Logf("  日配额:")
-			t.Logf("    Limit: %d 分 (%.2f 美元)", group.DailyLimit, float64(group.DailyLimit)/100)
-			t.Logf("    Used: %d 分 (%.2f 美元)", group.DailyUsed, float64(group.DailyUsed)/100)
 			usagePercent := float64(group.DailyUsed) / float64(group.DailyLimit) * 100
 			t.Logf("    Usage: %.2f%%", usagePercent)
 		}
+		usagePercent := float64(group.DailyUsed) / float64(group.DailyLimit) * 100
+		t.Logf("    Usage: %.2f%%", usagePercent)
 
+		t.Logf("  周配额:")
+		t.Logf("    Limit: %d 分 (%.2f 美元)", group.WeeklyLimit, float64(group.WeeklyLimit)/100)
+		t.Logf("    Used: %d 分 (%.2f 美元)", group.WeeklyUsed, float64(group.WeeklyUsed)/100)
 		if group.WeeklyLimit > 0 {
-			t.Logf("  周配额:")
-			t.Logf("    Limit: %d 分 (%.2f 美元)", group.WeeklyLimit, float64(group.WeeklyLimit)/100)
-			t.Logf("    Used: %d 分 (%.2f 美元)", group.WeeklyUsed, float64(group.WeeklyUsed)/100)
 			usagePercent := float64(group.WeeklyUsed) / float64(group.WeeklyLimit) * 100
 			t.Logf("    Usage: %.2f%%", usagePercent)
 		}
