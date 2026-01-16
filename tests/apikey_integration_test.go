@@ -32,17 +32,17 @@ func TestGetCurrentGroup(t *testing.T) {
 	}
 
 	// 打印结果
-	if currentGroup.Group != nil {
+	if currentGroup.Data != nil {
 		t.Logf("当前绑定的订阅组:")
-		t.Logf("  ID: %d", currentGroup.Group.ID)
-		t.Logf("  Name: %s", currentGroup.Group.Name)
-		t.Logf("  Description: %s", currentGroup.Group.Description)
+		t.Logf("  ID: %d", currentGroup.Data.ID)
+		t.Logf("  Name: %s", currentGroup.Data.Name)
+		t.Logf("  Description: %s", currentGroup.Data.Description)
 
 		// 验证必填字段
-		if currentGroup.Group.ID == 0 {
+		if currentGroup.Data.ID == 0 {
 			t.Error("分组 ID 不应为 0")
 		}
-		if currentGroup.Group.Name == "" {
+		if currentGroup.Data.Name == "" {
 			t.Error("分组名称不应为空")
 		}
 	} else {
@@ -138,9 +138,9 @@ func TestSwitchGroup(t *testing.T) {
 	}
 
 	var originalGroupID int64
-	if currentGroup.Group != nil {
-		originalGroupID = currentGroup.Group.ID
-		t.Logf("   当前分组: %s (ID: %d)", currentGroup.Group.Name, currentGroup.Group.ID)
+	if currentGroup.Data != nil {
+		originalGroupID = currentGroup.Data.ID
+		t.Logf("   当前分组: %s (ID: %d)", currentGroup.Data.Name, currentGroup.Data.ID)
 	} else {
 		t.Log("   当前未绑定任何分组")
 	}
@@ -182,13 +182,23 @@ func TestSwitchGroup(t *testing.T) {
 		t.Fatalf("切换订阅组失败: %v", err)
 	}
 
-	if !switchResp.Success {
-		t.Fatalf("切换失败: %s", switchResp.Message)
+	// 打印响应详情用于调试
+	t.Logf("   响应详情:")
+	t.Logf("     Code: %d", switchResp.Code)
+	t.Logf("     Message: %s", switchResp.Msg)
+	if switchResp.Data != nil {
+		t.Logf("     Group: %s (ID: %d)", switchResp.Data.Name, switchResp.Data.ID)
+	} else {
+		t.Logf("     Group: nil")
+	}
+
+	if switchResp.Code != 0 {
+		t.Fatalf("切换失败: %s", switchResp.Msg)
 	}
 
 	t.Log("   切换成功!")
-	if switchResp.Group != nil {
-		t.Logf("   新分组: %s (ID: %d)", switchResp.Group.Name, switchResp.Group.ID)
+	if switchResp.Data != nil {
+		t.Logf("   新分组: %s (ID: %d)", switchResp.Data.Name, switchResp.Data.ID)
 	}
 
 	// 5. 验证切换结果
@@ -198,15 +208,15 @@ func TestSwitchGroup(t *testing.T) {
 		t.Fatalf("获取当前订阅组失败: %v", err)
 	}
 
-	if newCurrentGroup.Group == nil {
+	if newCurrentGroup.Data == nil {
 		t.Fatal("切换后应该有绑定的分组")
 	}
 
-	if newCurrentGroup.Group.ID != targetGroupID {
-		t.Errorf("切换后的分组 ID 不匹配: 期望 %d, 实际 %d", targetGroupID, newCurrentGroup.Group.ID)
+	if newCurrentGroup.Data.ID != targetGroupID {
+		t.Errorf("切换后的分组 ID 不匹配: 期望 %d, 实际 %d", targetGroupID, newCurrentGroup.Data.ID)
 	}
 
-	t.Logf("   验证通过: 当前分组为 %s (ID: %d)", newCurrentGroup.Group.Name, newCurrentGroup.Group.ID)
+	t.Logf("   验证通过: 当前分组为 %s (ID: %d)", newCurrentGroup.Data.Name, newCurrentGroup.Data.ID)
 
 	// 6. 切换回原来的分组（如果有）
 	if originalGroupID != 0 {
@@ -216,7 +226,7 @@ func TestSwitchGroup(t *testing.T) {
 		})
 		if err != nil {
 			t.Logf("   警告: 切换回原分组失败: %v", err)
-		} else if switchBackResp.Success {
+		} else if switchBackResp.Code == 0 {
 			t.Log("   已切换回原分组")
 		}
 	}

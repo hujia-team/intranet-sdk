@@ -203,25 +203,16 @@ type GetAvailableGroupsResp struct {
 }
 
 // GetCurrentGroupResp 获取当前分组响应
-type GetCurrentGroupResp struct {
-	// Group | 当前分组（可能为空）
-	Group *Sub2ApiGroupInfo `json:"group,optional"`
+type CurrentGroupResp struct {
+	// BaseDataInfo | 基础数据信息
+	BaseDataInfo
+
+	// Data | 当前分组（可能为空）
+	Data *Sub2ApiGroupInfo `json:"data,optional"`
 }
 
 // SwitchGroupReq 切换分组请求
 type SwitchGroupReq struct {
 	// GroupID | 目标分组 ID
 	GroupID int64 `json:"groupId"`
-}
-
-// SwitchGroupResp 切换分组响应
-type SwitchGroupResp struct {
-	// Success | 是否成功
-	Success bool `json:"success"`
-
-	// Group | 切换后的分组信息
-	Group *Sub2ApiGroupInfo `json:"group,optional"`
-
-	// Message | 消息
-	Message string `json:"message,optional"`
 }

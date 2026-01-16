@@ -31,10 +31,10 @@ type ApiKeyService interface {
 	GetAvailableGroups() (*models.GetAvailableGroupsResp, error)
 
 	// GetCurrentGroup gets the current subscription group bound to the user's API key.
-	GetCurrentGroup() (*models.GetCurrentGroupResp, error)
+	GetCurrentGroup() (*models.CurrentGroupResp, error)
 
 	// SwitchGroup switches the subscription group for an API key.
-	SwitchGroup(req *models.SwitchGroupReq) (*models.SwitchGroupResp, error)
+	SwitchGroup(req *models.SwitchGroupReq) (*models.CurrentGroupResp, error)
 }
 
 // apiKeyService implements the ApiKeyService interface.
@@ -240,12 +240,8 @@ func (s *apiKeyService) GetAvailableGroups() (*models.GetAvailableGroupsResp, er
 }
 
 // GetCurrentGroup implements the ApiKeyService.GetCurrentGroup method.
-func (s *apiKeyService) GetCurrentGroup() (*models.GetCurrentGroupResp, error) {
-	var response struct {
-		Code int                        `json:"code"`
-		Msg  string                     `json:"msg"`
-		Data *models.Sub2ApiGroupInfo `json:"data"`
-	}
+func (s *apiKeyService) GetCurrentGroup() (*models.CurrentGroupResp, error) {
+	var response models.CurrentGroupResp
 
 	utils.Debug("Getting current group for user's API key")
 	err := s.httpClient.Post("/aiplorer/sub2api/group/current", nil, &response)
@@ -260,19 +256,12 @@ func (s *apiKeyService) GetCurrentGroup() (*models.GetCurrentGroupResp, error) {
 	}
 
 	utils.Debug("Got current group successfully")
-	return &models.GetCurrentGroupResp{
-		Group: response.Data,
-	}, nil
+	return &response, nil
 }
 
 // SwitchGroup implements the ApiKeyService.SwitchGroup method.
-func (s *apiKeyService) SwitchGroup(req *models.SwitchGroupReq) (*models.SwitchGroupResp, error) {
-	var response struct {
-		Code int                    `json:"code"`
-		Msg  string                 `json:"msg"`
-		Data models.SwitchGroupResp `json:"data"`
-	}
-
+func (s *apiKeyService) SwitchGroup(req *models.SwitchGroupReq) (*models.CurrentGroupResp, error) {
+	var response models.CurrentGroupResp
 	utils.Debug("Switching group to group ID: %d", req.GroupID)
 	err := s.httpClient.Post("/aiplorer/sub2api/group/switch", req, &response)
 	if err != nil {
@@ -286,5 +275,5 @@ func (s *apiKeyService) SwitchGroup(req *models.SwitchGroupReq) (*models.SwitchG
 	}
 
 	utils.Debug("Switched group successfully")
-	return &response.Data, nil
+	return &response, nil
 }
