@@ -133,7 +133,7 @@ func (s *apiKeyService) GetApiKeyList(req *models.ApiKeyListReq) (*models.ApiKey
 		Code int    `json:"code"`
 		Msg  string `json:"msg"`
 		Data struct {
-			Total uint64               `json:"total"`
+			Total uint64              `json:"total"`
 			Data  []models.ApiKeyInfo `json:"data"`
 		} `json:"data"`
 	}
@@ -162,8 +162,8 @@ func (s *apiKeyService) GetApiKeyList(req *models.ApiKeyListReq) (*models.ApiKey
 // GetApiKeyByID implements the ApiKeyService.GetApiKeyByID method.
 func (s *apiKeyService) GetApiKeyByID(id uint64) (*models.ApiKeyInfo, error) {
 	var response struct {
-		Code int                 `json:"code"`
-		Msg  string              `json:"msg"`
+		Code int               `json:"code"`
+		Msg  string            `json:"msg"`
 		Data models.ApiKeyInfo `json:"data"`
 	}
 
@@ -192,8 +192,8 @@ func (s *apiKeyService) GetApiKeyByID(id uint64) (*models.ApiKeyInfo, error) {
 // GetSub2ApiKey implements the ApiKeyService.GetSub2ApiKey method.
 func (s *apiKeyService) GetSub2ApiKey() (*models.ApiKeyInfo, error) {
 	var response struct {
-		Code int              `json:"code"`
-		Msg  string           `json:"msg"`
+		Code int               `json:"code"`
+		Msg  string            `json:"msg"`
 		Data models.ApiKeyInfo `json:"data"`
 	}
 
@@ -216,8 +216,8 @@ func (s *apiKeyService) GetSub2ApiKey() (*models.ApiKeyInfo, error) {
 // GetAvailableGroups implements the ApiKeyService.GetAvailableGroups method.
 func (s *apiKeyService) GetAvailableGroups() (*models.GetAvailableGroupsResp, error) {
 	var response struct {
-		Code int                        `json:"code"`
-		Msg  string                     `json:"msg"`
+		Code int                       `json:"code"`
+		Msg  string                    `json:"msg"`
 		Data []models.Sub2ApiGroupInfo `json:"data"`
 	}
 
@@ -242,9 +242,9 @@ func (s *apiKeyService) GetAvailableGroups() (*models.GetAvailableGroupsResp, er
 // GetCurrentGroup implements the ApiKeyService.GetCurrentGroup method.
 func (s *apiKeyService) GetCurrentGroup() (*models.GetCurrentGroupResp, error) {
 	var response struct {
-		Code int                         `json:"code"`
-		Msg  string                      `json:"msg"`
-		Data models.GetCurrentGroupResp `json:"data"`
+		Code int                        `json:"code"`
+		Msg  string                     `json:"msg"`
+		Data *models.Sub2ApiGroupInfo `json:"data"`
 	}
 
 	utils.Debug("Getting current group for user's API key")
@@ -260,14 +260,16 @@ func (s *apiKeyService) GetCurrentGroup() (*models.GetCurrentGroupResp, error) {
 	}
 
 	utils.Debug("Got current group successfully")
-	return &response.Data, nil
+	return &models.GetCurrentGroupResp{
+		Group: response.Data,
+	}, nil
 }
 
 // SwitchGroup implements the ApiKeyService.SwitchGroup method.
 func (s *apiKeyService) SwitchGroup(req *models.SwitchGroupReq) (*models.SwitchGroupResp, error) {
 	var response struct {
-		Code int                     `json:"code"`
-		Msg  string                  `json:"msg"`
+		Code int                    `json:"code"`
+		Msg  string                 `json:"msg"`
 		Data models.SwitchGroupResp `json:"data"`
 	}
 
