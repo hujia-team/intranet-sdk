@@ -172,10 +172,10 @@ func main() {
 	if err != nil {
 		log.Printf("获取当前订阅组失败: %v", err)
 	} else {
-		if currentGroup.Group != nil {
-			fmt.Printf("   当前绑定的订阅组: %s (ID: %d)\n", currentGroup.Group.Name, currentGroup.Group.ID)
-			if currentGroup.Group.Description != "" {
-				fmt.Printf("   Description: %s\n", currentGroup.Group.Description)
+		if currentGroup.Data != nil {
+			fmt.Printf("   当前绑定的订阅组: %s (ID: %d)\n", currentGroup.Data.Name, currentGroup.Data.ID)
+			if currentGroup.Data.Description != "" {
+				fmt.Printf("   Description: %s\n", currentGroup.Data.Description)
 			}
 		} else {
 			fmt.Println("   当前未绑定任何订阅组")
@@ -196,13 +196,13 @@ func main() {
 		if err != nil {
 			log.Printf("切换订阅组失败: %v", err)
 		} else {
-			if switchResp.Success {
+			if switchResp.Code == 0 {
 				fmt.Println("   切换成功!")
-				if switchResp.Group != nil {
-					fmt.Printf("   新订阅组: %s (ID: %d)\n", switchResp.Group.Name, switchResp.Group.ID)
+				if switchResp.Data != nil {
+					fmt.Printf("   新订阅组: %s (ID: %d)\n", switchResp.Data.Name, switchResp.Data.ID)
 				}
 			} else {
-				fmt.Printf("   切换失败: %s\n", switchResp.Message)
+				fmt.Printf("   切换失败: %s\n", switchResp.Msg)
 			}
 		}
 		fmt.Println()

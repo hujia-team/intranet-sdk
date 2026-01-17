@@ -196,10 +196,67 @@ type Sub2ApiGroupInfo struct {
 	WeeklyUsed int64 `json:"weeklyUsed,optional"`
 }
 
+// Sub2ApiGroupQuotaInfo Sub2Api 分组配额信息
+type Sub2ApiGroupQuotaInfo struct {
+	// DailyLimit | 日配额限制（单位：分，即美分）
+	DailyLimit *int64 `json:"dailyLimit,optional"`
+
+	// DailyUsed | 日配额已使用（单位：分）
+	DailyUsed *int64 `json:"dailyUsed,optional"`
+
+	// WeeklyLimit | 周配额限制（单位：分）
+	WeeklyLimit *int64 `json:"weeklyLimit,optional"`
+
+	// WeeklyUsed | 周配额已使用（单位：分）
+	WeeklyUsed *int64 `json:"weeklyUsed,optional"`
+}
+
+// QuotaHistoryPoint 配额历史数据点
+type QuotaHistoryPoint struct {
+	// Timestamp | Unix 时间戳（秒）
+	Timestamp int64 `json:"timestamp"`
+
+	// Used | 已使用配额（分）
+	Used int64 `json:"used"`
+
+	// Limit | 配额限制（分）
+	Limit int64 `json:"limit"`
+}
+
 // GetAvailableGroupsResp 获取可用分组响应
 type GetAvailableGroupsResp struct {
+	// Total | 数据总数
+	Total uint64 `json:"total"`
+
 	// Data | 分组列表
 	Data []Sub2ApiGroupInfo `json:"data"`
+}
+
+// Sub2ApiGroupInfoResp 分组信息响应
+type Sub2ApiGroupInfoResp struct {
+	// BaseDataInfo | 基础数据信息
+	BaseDataInfo
+
+	// Data | 分组信息
+	Data *Sub2ApiGroupInfo `json:"data"`
+}
+
+// Sub2ApiGroupQuotaResp 分组配额响应
+type Sub2ApiGroupQuotaResp struct {
+	// BaseDataInfo | 基础数据信息
+	BaseDataInfo
+
+	// Data | 配额信息
+	Data *Sub2ApiGroupQuotaInfo `json:"data"`
+}
+
+// Sub2ApiGroupQuotaHistoryResp 分组配额历史响应
+type Sub2ApiGroupQuotaHistoryResp struct {
+	// Total | 数据总数
+	Total uint64 `json:"total"`
+
+	// Data | 历史数据点列表
+	Data []QuotaHistoryPoint `json:"data"`
 }
 
 // GetCurrentGroupResp 获取当前分组响应

@@ -215,11 +215,7 @@ func (s *apiKeyService) GetSub2ApiKey() (*models.ApiKeyInfo, error) {
 
 // GetAvailableGroups implements the ApiKeyService.GetAvailableGroups method.
 func (s *apiKeyService) GetAvailableGroups() (*models.GetAvailableGroupsResp, error) {
-	var response struct {
-		Code int                       `json:"code"`
-		Msg  string                    `json:"msg"`
-		Data []models.Sub2ApiGroupInfo `json:"data"`
-	}
+	var response models.GetAvailableGroupsResp
 
 	utils.Debug("Getting available subscription groups")
 	err := s.httpClient.Post("/aiplorer/sub2api/group/available", nil, &response)
@@ -228,15 +224,8 @@ func (s *apiKeyService) GetAvailableGroups() (*models.GetAvailableGroupsResp, er
 		return nil, utils.NewAPIError("failed to get available groups", err)
 	}
 
-	if response.Code != 0 {
-		utils.Error("API error: %s", response.Msg)
-		return nil, utils.NewAPIError(response.Msg, nil)
-	}
-
-	utils.Debug("Got available groups successfully, count: %d", len(response.Data))
-	return &models.GetAvailableGroupsResp{
-		Data: response.Data,
-	}, nil
+	utils.Debug("Got available groups successfully, count: %d, total: %d", len(response.Data), response.Total)
+	return &response, nil
 }
 
 // GetCurrentGroup implements the ApiKeyService.GetCurrentGroup method.
