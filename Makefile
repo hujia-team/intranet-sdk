@@ -32,7 +32,7 @@ help:
 # 运行所有测试
 test:
 	@echo "运行所有测试..."
-	@GOWORK=off go test -v ./...
+	@GOWORK=off go test -v $$(go list ./... | grep -v /examples)
 
 # 运行单元测试（排除 tests 目录）
 test-unit:
