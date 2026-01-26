@@ -1,3 +1,16 @@
+// 连接器示例
+//
+// 演示如何使用连接器相关功能，包括发送Kafka消息。
+//
+// 安装:
+//
+//	go get github.com/hujia-team/intranet-sdk
+//
+// 运行方法:
+//
+//	export INTRANET_ACCESS_KEY_ID=your_access_key_id
+//	export INTRANET_ACCESS_KEY_SECRET=your_access_key_secret
+//	go run examples/connector_example.go
 package main
 
 import (
@@ -6,6 +19,10 @@ import (
 
 	intranet "github.com/hujia-team/intranet-sdk"
 )
+
+type Message struct {
+	Key string `json:"key"`
+}
 
 func main() {
 	accessKeyID := os.Getenv("INTRANET_ACCESS_KEY_ID")
@@ -26,9 +43,8 @@ func main() {
 		fmt.Printf("初始化SDK失败: %v\n", err)
 		os.Exit(1)
 	}
-	resp, err := sdk.Connector.SendKafkaMessage("test", map[string]string{
-		"key":  "value",
-		"key2": "value2",
+	resp, err := sdk.Connector.SendKafkaMessage("you-topic", Message{
+		Key: "value",
 	})
 	if err != nil {
 		fmt.Printf("发送消息到Kafka主题失败: %v\n", err)
