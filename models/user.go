@@ -3,40 +3,73 @@ package models
 
 // UserInfo 用户信息
 type UserInfo struct {
-	// UUID | 用户唯一标识
-	UserID string `json:"userId,optional"`
+	// ID | 用户唯一标识（UUID）
+	Id *string `json:"id,optional"`
 
-	// User name | 用户名
-	Username string `json:"username,optional"`
+	// Create date | 创建日期
+	CreatedAt *int64 `json:"createdAt,optional"`
+
+	// Update date | 更新日期
+	UpdatedAt *int64 `json:"updatedAt,optional"`
+
+	// Status | 状态
+	Status *uint32 `json:"status,optional"`
+
+	// Username | 用户名
+	Username *string `json:"username,optional"`
 
 	// Nickname | 昵称
-	Nickname string `json:"nickname,optional"`
+	Nickname *string `json:"nickname,optional"`
 
-	// Avatar | 头像
-	Avatar string `json:"avatar,optional"`
+	// Password | 密码
+	Password *string `json:"password,optional"`
 
-	// HomePath | 主目录路径
-	HomePath string `json:"homePath,optional"`
+	// Description | 描述
+	Description *string `json:"description,optional"`
 
-	// RoleName | 角色名称
-	RoleName string `json:"roleName,optional"`
+	// HomePath | 首页
+	HomePath *string `json:"homePath,optional"`
+
+	// RoleIds | 角色ID列表
+	RoleIds []uint64 `json:"roleIds,optional"`
+
+	// Mobile | 手机号
+	Mobile *string `json:"mobile,optional"`
+
+	// Email | 邮箱
+	Email *string `json:"email,optional"`
+
+	// Avatar | 头像地址
+	Avatar *string `json:"avatar,optional"`
+
+	// DepartmentId | 部门ID
+	DepartmentId *uint64 `json:"departmentId,optional"`
 
 	// DepartmentName | 部门名称
-	DepartmentName string `json:"departmentName,optional"`
+	DepartmentName *string `json:"departmentName,optional"`
+
+	// PositionIds | 职位ID列表
+	PositionIds []uint64 `json:"positionId,optional"`
+
+	// DingtalkId | 钉钉ID
+	DingtalkId *string `json:"dingtalkId,optional"`
+
+	// FeishuId | 飞书ID
+	FeishuId *string `json:"feishuId,optional"`
 }
 
 // GetUsername 获取用户名
 func (u *UserInfo) GetUsername() string {
-	if u != nil && u.Username != "" {
-		return u.Username
+	if u != nil && u.Username != nil && *u.Username != "" {
+		return *u.Username
 	}
 	return ""
 }
 
-// GetRealName 获取真实姓名
+// GetNickname 获取昵称
 func (u *UserInfo) GetNickname() string {
-	if u != nil && u.Nickname != "" {
-		return u.Nickname
+	if u != nil && u.Nickname != nil && *u.Nickname != "" {
+		return *u.Nickname
 	}
 	return ""
 }
@@ -46,17 +79,29 @@ type UserListReq struct {
 	// PageInfo
 	PageInfo
 
-	// User name | 用户名
-	Username string `json:"username,optional"`
+	// User Name | 用户名
+	Username *string `json:"username,optional"`
 
-	// Real name | 真实姓名
-	RealName string `json:"realName,optional"`
+	// User's nickname | 用户的昵称
+	Nickname *string `json:"nickname,optional"`
 
-	// Department | 部门
-	Department string `json:"department,optional"`
+	// User's mobile phone number | 用户的手机号码
+	Mobile *string `json:"mobile,optional"`
 
-	// Role | 角色
-	Role string `json:"role,optional"`
+	// The user's email address | 用户的邮箱
+	Email *string `json:"email,optional"`
+
+	// User's role ID | 用户的角色ID
+	RoleIds []uint64 `json:"roleIds,optional"`
+
+	// The user's department ID | 用户所属部门ID
+	DepartmentId *uint64 `json:"departmentId,optional"`
+
+	// User's position id | 用户的职位ID
+	PositionId *uint64 `json:"positionId,optional"`
+
+	// Description | 描述
+	Description *string `json:"description,optional"`
 }
 
 // UserListRsp 用户列表响应
@@ -65,7 +110,7 @@ type UserListRsp struct {
 	Total uint64 `json:"total"`
 
 	// User list | 用户列表
-	List []UserInfo `json:"list"`
+	Data []UserInfo `json:"data"`
 }
 
 // UserUpdateReq 更新用户请求
