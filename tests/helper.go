@@ -3,6 +3,8 @@ package tests
 import (
 	"fmt"
 	"os"
+	"path/filepath"
+	"runtime"
 
 	"github.com/hujia-team/intranet-sdk"
 	"github.com/joho/godotenv"
@@ -17,8 +19,22 @@ type TestConfig struct {
 
 // LoadTestConfig 从 .env 文件加载测试配置
 func LoadTestConfig() (*TestConfig, error) {
-	// 尝试加载 .env 文件(如果存在)
-	_ = godotenv.Load("../.env")
+	// 优先兼容从模块根目录、tests 目录或任意调用目录执行 go test
+	_, currentFile, _, _ := runtime.Caller(0)
+	testsDir := filepath.Dir(currentFile)
+	moduleRoot := filepath.Dir(testsDir)
+	candidates := []string{
+		".env",
+		filepath.Join("..", ".env"),
+		filepath.Join(testsDir, ".env"),
+		filepath.Join(moduleRoot, ".env"),
+	}
+	for _, path := range candidates {
+		if _, err := os.Stat(path); err == nil {
+			_ = godotenv.Load(path)
+			break
+		}
+	}
 
 	config := &TestConfig{
 		BaseURL:         os.Getenv("INTRANET_BASE_URL"),

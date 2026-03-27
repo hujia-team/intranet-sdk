@@ -91,6 +91,18 @@ export INTRANET_ACCESS_KEY_SECRET=your_access_key_secret
 go run examples/apikey_example.go
 ```
 
+#### 4. 制品示例 (artifact_example.go)
+
+演示如何使用制品相关功能，包括列表查询、按名称获取详情以及获取下载地址。
+
+**运行方法：**
+```bash
+export INTRANET_ACCESS_KEY_ID=your_access_key_id
+export INTRANET_ACCESS_KEY_SECRET=your_access_key_secret
+
+go run examples/artifact_example.go
+```
+
 ### 错误处理
 
 SDK使用自定义的错误类型返回详细的错误信息：
