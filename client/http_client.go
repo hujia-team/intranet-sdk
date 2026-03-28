@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"mime/multipart"
 	"net/http"
 	"sync"
 	"time"
@@ -21,18 +22,27 @@ type HTTPClient struct {
 	mu        sync.RWMutex
 }
 
+type RawResponse struct {
+	StatusCode int
+	Body       []byte
+	Header     http.Header
+}
+
 // NewHTTPClient creates a new HTTP client.
 func NewHTTPClient(config *Config) (*HTTPClient, error) {
 	if config.BaseURL == "" {
 		return nil, utils.NewInvalidInputError("base URL is required", nil)
 	}
 
-	client := &http.Client{
+	httpClient := &http.Client{
 		Timeout: 30 * time.Second,
+	}
+	if providedClient, ok := config.HTTPClient.(*http.Client); ok && providedClient != nil {
+		httpClient = providedClient
 	}
 
 	return &HTTPClient{
-		client: client,
+		client: httpClient,
 		config: config,
 	}, nil
 }
@@ -84,73 +94,19 @@ func (c *HTTPClient) Do(method, endpoint string, body interface{}, result interf
 
 	utils.Trace("%s %s", method, url)
 
-	// Set headers
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "application/json")
-	if c.config.UserAgent != "" {
-		req.Header.Set("User-Agent", c.config.UserAgent)
-	}
-	// 优先级: authToken (从登录) > STS认证 > apiKey
-	authToken := c.GetAuthToken()
-
-	if authToken != "" {
-		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", authToken))
-	} else if c.config.AccessKeyID != "" && c.config.AccessKeySecret != "" {
-		// 使用STS认证方式
-		req.Header.Set("x-sts-uid", c.config.AccessKeyID)
-		req.Header.Set("x-sts-token", utils.GenerateToken(c.config.AccessKeyID, c.config.AccessKeySecret))
-	} else if c.config.APIKey != "" {
-		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", c.config.APIKey))
-	}
-
-	resp, err := c.client.Do(req)
+	c.applyDefaultHeaders(req)
+	respBody, err := c.doRequest(req)
 	if err != nil {
-		utils.Debug("Failed to send request: %v", err)
-		return utils.NewNetworkError("failed to send request", err)
+		return err
 	}
-	defer resp.Body.Close()
-
-	utils.Trace("Response status: %d", resp.StatusCode)
-
-	respBody, err := io.ReadAll(resp.Body)
-	if err != nil {
-		utils.Debug("Failed to read response body: %v", err)
-		return utils.NewInternalError("failed to read response body", err)
-	}
-
-	utils.Trace("Response body: %s", string(respBody))
-
-	// Check if the response status code is successful
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		utils.Error("API error: status=%d, body=%s", resp.StatusCode, string(respBody))
-
-		// Map HTTP status codes to SDK error types
-		var code utils.ErrorCode
-		switch {
-		case resp.StatusCode == 401:
-			code = utils.ErrCodeUnauthorized
-		case resp.StatusCode == 403:
-			code = utils.ErrCodeForbidden
-		case resp.StatusCode == 404:
-			code = utils.ErrCodeNotFound
-		case resp.StatusCode >= 500:
-			code = utils.ErrCodeAPIError
-		default:
-			code = utils.ErrCodeAPIError
-		}
-
-		errorMsg := fmt.Sprintf("API error: status=%d, body=%s", resp.StatusCode, string(respBody))
-		return utils.NewSDKError(code, errorMsg, nil)
-	}
-
-	// Parse the response body if result is provided
 	if result != nil {
 		if err := json.Unmarshal(respBody, result); err != nil {
 			utils.Debug("Failed to unmarshal response body: %v", err)
 			return utils.NewInternalError("failed to unmarshal response body", err)
 		}
 	}
-
 	return nil
 }
 
@@ -172,4 +128,195 @@ func (c *HTTPClient) Put(endpoint string, body interface{}, result interface{}) 
 // Delete sends a DELETE request to the specified endpoint.
 func (c *HTTPClient) Delete(endpoint string, result interface{}) error {
 	return c.Do("DELETE", endpoint, nil, result)
+}
+
+// PostMultipart sends a multipart/form-data POST request.
+func (c *HTTPClient) PostMultipart(endpoint string, body *bytes.Buffer, contentType string, headers map[string]string, result interface{}) error {
+	url := fmt.Sprintf("%s%s", c.config.BaseURL, endpoint)
+	req, err := http.NewRequest(http.MethodPost, url, body)
+	if err != nil {
+		utils.Debug("Failed to create multipart request: %v", err)
+		return utils.NewInternalError("failed to create multipart request", err)
+	}
+	req.Header.Set("Content-Type", contentType)
+	req.Header.Set("Accept", "application/json")
+	c.applyDefaultHeaders(req)
+	for key, value := range headers {
+		req.Header.Set(key, value)
+	}
+
+	respBody, err := c.doRequest(req)
+	if err != nil {
+		return err
+	}
+	if result != nil {
+		if err := json.Unmarshal(respBody, result); err != nil {
+			utils.Debug("Failed to unmarshal multipart response body: %v", err)
+			return utils.NewInternalError("failed to unmarshal response body", err)
+		}
+	}
+	return nil
+}
+
+func (c *HTTPClient) PostMultipartRaw(endpoint string, body *bytes.Buffer, contentType string, headers map[string]string) (*RawResponse, error) {
+	req, err := c.newRequest(http.MethodPost, fmt.Sprintf("%s%s", c.config.BaseURL, endpoint), body)
+	if err != nil {
+		utils.Debug("Failed to create multipart request: %v", err)
+		return nil, utils.NewInternalError("failed to create multipart request", err)
+	}
+	req.Header.Set("Content-Type", contentType)
+	req.Header.Set("Accept", "application/json")
+	c.applyDefaultHeaders(req)
+	for key, value := range headers {
+		req.Header.Set(key, value)
+	}
+	return c.doRawRequest(req)
+}
+
+func (c *HTTPClient) PostRaw(endpoint string, body interface{}, headers map[string]string) (*RawResponse, error) {
+	var bodyReader io.Reader
+	if body != nil {
+		jsonBytes, err := json.Marshal(body)
+		if err != nil {
+			return nil, utils.NewInternalError("failed to marshal request body", err)
+		}
+		bodyReader = bytes.NewBuffer(jsonBytes)
+	}
+	req, err := c.newRequest(http.MethodPost, fmt.Sprintf("%s%s", c.config.BaseURL, endpoint), bodyReader)
+	if err != nil {
+		return nil, utils.NewInternalError("failed to create request", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept", "application/json")
+	c.applyDefaultHeaders(req)
+	for key, value := range headers {
+		req.Header.Set(key, value)
+	}
+	return c.doRawRequest(req)
+}
+
+func (c *HTTPClient) PostMultipartRawURL(rawURL string, body *bytes.Buffer, contentType string, headers map[string]string) (*RawResponse, error) {
+	req, err := c.newRequest(http.MethodPost, rawURL, body)
+	if err != nil {
+		utils.Debug("Failed to create multipart request: %v", err)
+		return nil, utils.NewInternalError("failed to create multipart request", err)
+	}
+	req.Header.Set("Content-Type", contentType)
+	req.Header.Set("Accept", "application/json")
+	c.applyDefaultHeaders(req)
+	for key, value := range headers {
+		req.Header.Set(key, value)
+	}
+	return c.doRawRequest(req)
+}
+
+func (c *HTTPClient) PostRawURL(rawURL string, body interface{}, headers map[string]string) (*RawResponse, error) {
+	var bodyReader io.Reader
+	if body != nil {
+		jsonBytes, err := json.Marshal(body)
+		if err != nil {
+			return nil, utils.NewInternalError("failed to marshal request body", err)
+		}
+		bodyReader = bytes.NewBuffer(jsonBytes)
+	}
+	req, err := c.newRequest(http.MethodPost, rawURL, bodyReader)
+	if err != nil {
+		return nil, utils.NewInternalError("failed to create request", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept", "application/json")
+	c.applyDefaultHeaders(req)
+	for key, value := range headers {
+		req.Header.Set(key, value)
+	}
+	return c.doRawRequest(req)
+}
+
+// BuildMultipartBody creates a multipart body from form fields and one file field.
+func BuildMultipartBody(fields map[string]string, fileField string, fileName string, fileContent []byte) (*bytes.Buffer, string, error) {
+	body := &bytes.Buffer{}
+	writer := multipart.NewWriter(body)
+	for key, value := range fields {
+		if err := writer.WriteField(key, value); err != nil {
+			return nil, "", err
+		}
+	}
+	part, err := writer.CreateFormFile(fileField, fileName)
+	if err != nil {
+		return nil, "", err
+	}
+	if _, err := part.Write(fileContent); err != nil {
+		return nil, "", err
+	}
+	if err := writer.Close(); err != nil {
+		return nil, "", err
+	}
+	return body, writer.FormDataContentType(), nil
+}
+
+func (c *HTTPClient) applyDefaultHeaders(req *http.Request) {
+	if c.config.UserAgent != "" {
+		req.Header.Set("User-Agent", c.config.UserAgent)
+	}
+	authToken := c.GetAuthToken()
+	if authToken != "" {
+		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", authToken))
+		return
+	}
+	if c.config.AccessKeyID != "" && c.config.AccessKeySecret != "" {
+		req.Header.Set("x-sts-uid", c.config.AccessKeyID)
+		req.Header.Set("x-sts-token", utils.GenerateToken(c.config.AccessKeyID, c.config.AccessKeySecret))
+		return
+	}
+	if c.config.APIKey != "" {
+		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", c.config.APIKey))
+	}
+}
+
+func (c *HTTPClient) doRequest(req *http.Request) ([]byte, error) {
+	rawResp, err := c.doRawRequest(req)
+	if err != nil {
+		return nil, err
+	}
+	return rawResp.Body, nil
+}
+
+func (c *HTTPClient) doRawRequest(req *http.Request) (*RawResponse, error) {
+	resp, err := c.client.Do(req)
+	if err != nil {
+		utils.Debug("Failed to send request: %v", err)
+		return nil, utils.NewNetworkError("failed to send request", err)
+	}
+	defer resp.Body.Close()
+
+	utils.Trace("Response status: %d", resp.StatusCode)
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		utils.Debug("Failed to read response body: %v", err)
+		return nil, utils.NewInternalError("failed to read response body", err)
+	}
+	utils.Trace("Response body: %s", string(respBody))
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		utils.Error("API error: status=%d, body=%s", resp.StatusCode, string(respBody))
+		var code utils.ErrorCode
+		switch {
+		case resp.StatusCode == 401:
+			code = utils.ErrCodeUnauthorized
+		case resp.StatusCode == 403:
+			code = utils.ErrCodeForbidden
+		case resp.StatusCode == 404:
+			code = utils.ErrCodeNotFound
+		case resp.StatusCode >= 500:
+			code = utils.ErrCodeAPIError
+		default:
+			code = utils.ErrCodeAPIError
+		}
+		errorMsg := fmt.Sprintf("API error: status=%d, body=%s", resp.StatusCode, string(respBody))
+		return &RawResponse{StatusCode: resp.StatusCode, Body: respBody, Header: resp.Header.Clone()}, utils.NewSDKError(code, errorMsg, nil)
+	}
+	return &RawResponse{StatusCode: resp.StatusCode, Body: respBody, Header: resp.Header.Clone()}, nil
+}
+
+func (c *HTTPClient) newRequest(method string, rawURL string, body io.Reader) (*http.Request, error) {
+	return http.NewRequest(method, rawURL, body)
 }

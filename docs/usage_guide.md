@@ -41,6 +41,7 @@ if err != nil {
 - `sdk.Connector`
 - `sdk.ApiKey`
 - `sdk.Artifact`
+- `sdk.ClawSkill`
 
 ## 最小示例
 
@@ -72,6 +73,7 @@ _ = resp
 
 ## 按场景查看专题文档
 
+- Claw Skill 能力: [claw-skill-usage.md](./claw-skill-usage.md)
 - 制品能力: [artifact_usage.md](./artifact_usage.md)
 - ApiKey 能力: [apikey-usage.md](./apikey-usage.md)
 - 架构说明: [architecture.md](./architecture.md)

@@ -48,7 +48,7 @@ test-integration:
 		echo "请复制 .env.example 为 .env 并填入配置"; \
 		exit 1; \
 	fi
-	@GOWORK=off go test -v ./tests -run Integration
+	@GOWORK=off go test -v ./tests -run 'Test(GetCurrentGroup|GetAvailableGroups|SwitchGroup)' -count=1
 
 test-artifact-integration:
 	@echo "运行制品相关集成测试..."

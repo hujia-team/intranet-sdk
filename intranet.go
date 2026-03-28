@@ -2,17 +2,25 @@
 package intranet
 
 import (
+	"net/http"
+
 	"github.com/hujia-team/intranet-sdk/client"
 	"github.com/hujia-team/intranet-sdk/services"
 )
 
 // Client represents a client for the MiniEye Intranet API.
 type Client struct {
-	client    *client.HTTPClient
-	User      services.UserService
-	Connector services.ConnectorService
-	ApiKey    services.ApiKeyService
-	Artifact  services.ArtifactService
+	client            *client.HTTPClient
+	User              services.UserService
+	Connector         services.ConnectorService
+	ApiKey            services.ApiKeyService
+	Artifact          services.ArtifactService
+	ClawSkill         services.ClawSkillService
+	MultiRepoMergeSet services.MultiRepoMergeSetService
+}
+
+func (c *Client) HTTPClient() *client.HTTPClient {
+	return c.client
 }
 
 // NewClient creates a new MiniEye Intranet API client with the given options.
@@ -38,13 +46,17 @@ func NewClient(options ...Option) (*Client, error) {
 
 	// Create artifact service
 	artifactService := services.NewArtifactService(httpClient)
+	clawSkillService := services.NewClawSkillService(httpClient)
+	multiRepoMergeSetService := services.NewMultiRepoMergeSetService(httpClient)
 
 	return &Client{
-		client:    httpClient,
-		User:      userService,
-		Connector: connectorService,
-		ApiKey:    apiKeyService,
-		Artifact:  artifactService,
+		client:            httpClient,
+		User:              userService,
+		Connector:         connectorService,
+		ApiKey:            apiKeyService,
+		Artifact:          artifactService,
+		ClawSkill:         clawSkillService,
+		MultiRepoMergeSet: multiRepoMergeSetService,
 	}, nil
 }
 
@@ -94,5 +106,11 @@ func WithAccessKeyID(accessKeyID string) Option {
 func WithAccessKeySecret(accessKeySecret string) Option {
 	return func(c *client.Config) {
 		c.AccessKeySecret = accessKeySecret
+	}
+}
+
+func WithHTTPClient(httpClient *http.Client) Option {
+	return func(c *client.Config) {
+		c.HTTPClient = httpClient
 	}
 }

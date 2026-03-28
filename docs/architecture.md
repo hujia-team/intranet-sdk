@@ -26,6 +26,7 @@ docs/                    文档
   - `Connector`
   - `ApiKey`
   - `Artifact`
+  - `ClawSkill`
 
 ### `client/`
 
@@ -70,9 +71,12 @@ docs/                    文档
   制品专题
 - `apikey-usage.md`
   ApiKey 专题
+- `claw-skill-usage.md`
+  本地 Skill 上传/重置 token 专题
 
 ## 设计原则
 
 - 优先在 SDK 做 helper 组合，而不是为轻量消费场景新增服务端接口
 - SDK 返回尽量保持 typed model
+- 对需要保留状态码、原始响应文本和解析状态的能力，SDK 应返回 richer typed result，而不是把诊断信息留给调用方自己拼 HTTP
 - 通用场景走基础接口，重复使用频率高的组合逻辑再沉到 helper
