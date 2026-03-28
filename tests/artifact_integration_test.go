@@ -2,6 +2,8 @@ package tests
 
 import (
 	"os"
+	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/hujia-team/intranet-sdk/models"
@@ -187,4 +189,94 @@ func TestArtifactReadFlow(t *testing.T) {
 	}
 
 	t.Log("\n=== 测试完成 ===")
+}
+
+func TestArtifactChildHashesByCommitHash(t *testing.T) {
+	utils.SetDefaultLogLevel(utils.LogLevelDebug)
+
+	client, err := NewTestClient()
+	if err != nil {
+		t.Fatalf("创建客户端失败: %v", err)
+	}
+
+	testCases := []struct {
+		name       string
+		commitHash string
+		lookup     *models.ArtifactLookupOptions
+	}{
+		{
+			name:       "pkg root artifact",
+			commitHash: "89a84fcee9c8db4c7d8ccb3547cfcc0a",
+			lookup: &models.ArtifactLookupOptions{
+				ArtifactType: "pkg",
+			},
+		},
+		{
+			name:       "app root artifact",
+			commitHash: "60e604273314bafa694b30438bcc0c9a",
+			lookup: &models.ArtifactLookupOptions{
+				ArtifactType: "app",
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Logf("commit hash: %s", tc.commitHash)
+
+			rootArtifact, err := client.Artifact.GetArtifactByCommitHash(tc.commitHash, tc.lookup)
+			if err != nil {
+				t.Fatalf("通过 commit hash 获取根制品失败: %v", err)
+			}
+			if rootArtifact == nil || rootArtifact.ID == nil {
+				t.Fatalf("根制品响应无效: %#v", rootArtifact)
+			}
+
+			childHashes, err := client.Artifact.GetChildArtifactHashesByCommitHash(tc.commitHash, tc.lookup)
+			if err != nil {
+				t.Fatalf("获取子制品 hashes 失败: %v", err)
+			}
+			if childHashes == nil {
+				t.Fatal("子制品 hashes 响应为空")
+			}
+
+			t.Logf("root id: %d", *rootArtifact.ID)
+			if rootArtifact.Name != nil {
+				t.Logf("root name: %s", *rootArtifact.Name)
+			}
+			if rootArtifact.Type != nil {
+				t.Logf("root type: %s", *rootArtifact.Type)
+			}
+			t.Logf("child hash count: %d", len(childHashes.ChildHashes))
+
+			preview := make([]string, 0, min(5, len(childHashes.ChildHashes)))
+			for i, item := range childHashes.ChildHashes {
+				if i >= 5 {
+					break
+				}
+				parts := make([]string, 0, 4)
+				if item.Name != nil {
+					parts = append(parts, "name="+*item.Name)
+				}
+				if item.Type != nil {
+					parts = append(parts, "type="+*item.Type)
+				}
+				if item.CommitHash != nil {
+					parts = append(parts, "hash="+*item.CommitHash)
+				}
+				if item.ParentID != nil {
+					parts = append(parts, "parent="+uint64ToString(*item.ParentID))
+				}
+				preview = append(preview, strings.Join(parts, ", "))
+			}
+			if len(preview) > 0 {
+				t.Logf("child hash preview:\n%s", strings.Join(preview, "\n"))
+			}
+		})
+	}
+}
+
+func uint64ToString(v uint64) string {
+	return strconv.FormatUint(v, 10)
 }

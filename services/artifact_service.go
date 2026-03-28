@@ -17,7 +17,9 @@ type ArtifactService interface {
 	DeleteArtifacts(ids []uint64) (*models.BaseMsgResp, error)
 	ListArtifacts(req *models.ArtifactListReq) (*models.ArtifactListResp, error)
 	GetArtifactByID(id uint64) (*models.ArtifactInfo, error)
+	GetArtifactByCommitHash(commitHash string, lookup *models.ArtifactLookupOptions) (*models.ArtifactInfo, error)
 	GetArtifactByName(name string, lookup *models.ArtifactLookupOptions) (*models.ArtifactInfo, error)
+	GetChildArtifactHashesByCommitHash(commitHash string, lookup *models.ArtifactLookupOptions) (*models.ArtifactChildHashesInfo, error)
 	GetArtifactCommitDiff(artifactIDA, artifactIDB uint64) (*models.ArtifactCommitDiffInfo, error)
 	GetArtifactTagSchema(version string) (*models.ArtifactTagSchemaInfo, error)
 	GetArtifactTagSchemaJSON(version string) (map[string]any, error)
@@ -119,6 +121,9 @@ func (s *artifactService) GetArtifactByName(name string, lookup *models.Artifact
 		if lookup.SemanticVersion != "" {
 			req.SemanticVersion = &lookup.SemanticVersion
 		}
+		if lookup.ProjectName != "" {
+			req.ProjectName = &lookup.ProjectName
+		}
 		req.IsVirtual = lookup.IncludeVirtual
 	}
 	result, err := s.ListArtifacts(req)
@@ -141,6 +146,72 @@ func (s *artifactService) GetArtifactByName(name string, lookup *models.Artifact
 		return nil, utils.NewAPIError(fmt.Sprintf("artifact id missing for artifact: %s", name), nil)
 	}
 	return s.GetArtifactByID(*matched[0].ID)
+}
+
+func (s *artifactService) GetArtifactByCommitHash(commitHash string, lookup *models.ArtifactLookupOptions) (*models.ArtifactInfo, error) {
+	req := &models.ArtifactListReq{Page: 1, PageSize: 100, CommitHash: &commitHash}
+	if lookup != nil {
+		if lookup.ModulePath != "" {
+			req.ModulePath = &lookup.ModulePath
+		}
+		if lookup.ArtifactType != "" {
+			req.Type = &lookup.ArtifactType
+		}
+		if lookup.SemanticVersion != "" {
+			req.SemanticVersion = &lookup.SemanticVersion
+		}
+		if lookup.ProjectName != "" {
+			req.ProjectName = &lookup.ProjectName
+		}
+		req.IsVirtual = lookup.IncludeVirtual
+	}
+
+	result, err := s.ListArtifacts(req)
+	if err != nil {
+		return nil, err
+	}
+	var matched []models.ArtifactInfo
+	for _, item := range result.Data {
+		if item.CommitHash != nil && *item.CommitHash == commitHash {
+			matched = append(matched, item)
+		}
+	}
+	if len(matched) == 0 {
+		return nil, utils.NewAPIError(fmt.Sprintf("artifact not found by commit hash: %s", commitHash), nil)
+	}
+	if len(matched) > 1 {
+		return nil, utils.NewAPIError(fmt.Sprintf("multiple artifacts found by commit hash: %s", commitHash), nil)
+	}
+	if matched[0].ID == nil {
+		return nil, utils.NewAPIError(fmt.Sprintf("artifact id missing for commit hash: %s", commitHash), nil)
+	}
+	return s.GetArtifactByID(*matched[0].ID)
+}
+
+func (s *artifactService) GetChildArtifactHashesByCommitHash(commitHash string, lookup *models.ArtifactLookupOptions) (*models.ArtifactChildHashesInfo, error) {
+	artifact, err := s.GetArtifactByCommitHash(commitHash, lookup)
+	if err != nil {
+		return nil, err
+	}
+
+	result := &models.ArtifactChildHashesInfo{
+		RootArtifactID:   artifact.ID,
+		RootArtifactName: artifact.Name,
+		RootArtifactType: artifact.Type,
+		RootCommitHash:   artifact.CommitHash,
+		ChildHashes:      make([]models.ArtifactChildHashInfo, 0, len(artifact.Dependencies)),
+	}
+	for _, dep := range artifact.Dependencies {
+		result.ChildHashes = append(result.ChildHashes, models.ArtifactChildHashInfo{
+			ID:         dep.ID,
+			ParentID:   dep.ParentID,
+			Name:       dep.Name,
+			Type:       dep.Type,
+			CommitHash: dep.CommitHash,
+			ModulePath: dep.ModulePath,
+		})
+	}
+	return result, nil
 }
 
 func (s *artifactService) GetArtifactCommitDiff(artifactIDA, artifactIDB uint64) (*models.ArtifactCommitDiffInfo, error) {

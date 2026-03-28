@@ -1,171 +1,78 @@
-# MiniEye Intranet SDK 架构设计
+# 架构说明
 
-## 整体架构
+本文档描述当前 Go SDK 的代码组织和职责边界。
 
-```
-├── intranet.go          # SDK主入口，提供客户端初始化和核心功能
-├── client/              # HTTP客户端实现
-│   └── http_client.go   # 处理HTTP通信和认证
-├── models/              # 数据模型定义
-│   ├── user.go          # 用户相关模型
-│   └── common.go        # 通用数据结构
-├── services/            # 业务服务层
-│   ├── user_service.go  # 用户服务
-│   └── connector_service.go # 连接器服务
-├── utils/               # 工具函数
-│   ├── errors.go        # 错误处理
-│   ├── logger.go        # 日志工具
-│   └── sts.go           # STS认证相关工具
-├── examples/            # 使用示例
-│   ├── user_example.go  # 用户信息示例
-│   └── connector_example.go # 连接器示例
-└── go.mod               # Go模块定义
+## 目录结构
+
+```text
+intranet.go              客户端入口
+client/                  HTTP 客户端
+models/                  数据模型
+services/                各服务封装
+utils/                   错误、日志、STS 等工具
+examples/                示例
+tests/                   集成测试
+docs/                    文档
 ```
 
-## API接口设计
+## 分层职责
 
-### 1. 核心接口
+### `intranet.go`
 
-#### 客户端初始化
-```go
-// NewClient 创建一个新的MiniEye Intranet API客户端
-func NewClient(options ...Option) (*Client, error)
-```
+- 提供 `Client`
+- 管理全局配置
+- 暴露服务入口：
+  - `User`
+  - `Connector`
+  - `ApiKey`
+  - `Artifact`
 
-#### 配置选项
-```go
-// WithBaseURL 设置API基础URL
-func WithBaseURL(url string) Option
+### `client/`
 
-// WithAPIKey 设置API密钥
-func WithAPIKey(apiKey string) Option
+- 封装 HTTP 请求
+- 统一处理认证头
+- 统一处理错误状态码
 
-// WithUserAgent 设置用户代理
-func WithUserAgent(userAgent string) Option
+认证优先级：
 
-// WithAccessKeyID 设置STS认证的访问密钥ID
-func WithAccessKeyID(accessKeyID string) Option
+1. 登录态 Bearer Token
+2. STS 认证
+3. API Key
 
-// WithAccessKeySecret 设置STS认证的访问密钥密钥
-func WithAccessKeySecret(accessKeySecret string) Option
-```
+### `models/`
 
-### 2. 用户服务
+- 定义请求和响应结构
+- 尽量贴近服务端 JSON 字段
+- 承担少量通用辅助结构
 
-```go
-// UserService 提供用户相关的功能
-type UserService interface {
-    // GetUserInfo 获取当前用户信息
-    GetUserInfo() (*models.UserInfo, error)
-}
-```
+### `services/`
 
-### 3. 连接器服务
+- 面向业务场景封装接口
+- 对原始接口做 helper 组合
+- 典型例子：
+  `GetChildArtifactHashesByCommitHash`
+  它复用已有服务端接口，而不是要求服务端新增专用接口
 
-```go
-// ConnectorService 提供连接器相关的功能
-type ConnectorService interface {
-    // SendKafkaMessage sends a message to Kafka.
-    // topic: the Kafka topic to send the message to
-    // message: the message to send, can be any type that can be marshaled to JSON
-    SendKafkaMessage(topic string, message any) (models.BaseMsgResp, error)
+### `tests/`
 
-}
-```
+- `services/*_test.go`
+  以 stub server 做单元测试
+- `tests/*_integration_test.go`
+  走真实环境联调
 
-## 数据模型设计
+## 文档分层
 
-### 通用模型
-```go
-// Response 通用响应结构
-type Response struct {
-    Code    int         `json:"code"`
-    Message string      `json:"message"`
-    Data    interface{} `json:"data,omitempty"`
-}
+- `README.md`
+  入口页
+- `usage_guide.md`
+  通用使用指南
+- `artifact_usage.md`
+  制品专题
+- `apikey-usage.md`
+  ApiKey 专题
 
-// DataResponse 带类型数据的通用API响应
-type DataResponse struct {
-    Code    int         `json:"code"`
-    Message string      `json:"message"`
-    Data    interface{} `json:"data,omitempty"`
-}
+## 设计原则
 
-// ListResponse 列表数据的通用API响应
-type ListResponse struct {
-    Code    int         `json:"code"`
-    Message string      `json:"message"`
-    Data    ListData    `json:"data"`
-}
-
-// ListData 列表数据结构
-type ListData struct {
-    Total uint64      `json:"total"`
-    List  interface{} `json:"list"`
-}
-
-// BaseMsgResp 基础不带数据信息
-type BaseMsgResp struct {
-    Code int    `json:"code"`
-    Msg  string `json:"msg"`
-}
-
-// PageInfo 列表请求参数
-type PageInfo struct {
-    Page     uint64 `json:"page" validate:"required,number,gt=0"`
-    PageSize uint64 `json:"pageSize" validate:"required,number,lt=100000"`
-}
-```
-
-### 用户模型
-```go
-// UserInfo 用户信息
-type UserInfo struct {
-    // UUID | 用户唯一标识
-    UserID string `json:"userId,optional"`
-
-    // User name | 用户名
-    Username string `json:"username,optional"`
-
-    // Nickname | 昵称
-    Nickname string `json:"nickname,optional"`
-
-    // Avatar | 头像
-    Avatar string `json:"avatar,optional"`
-
-    // HomePath | 主目录路径
-    HomePath string `json:"homePath,optional"`
-
-    // RoleName | 角色名称
-    RoleName string `json:"roleName,optional"`
-
-    // DepartmentName | 部门名称
-    DepartmentName string `json:"departmentName,optional"`
-}
-```
-
-## 错误处理设计
-
-SDK使用SDKError作为自定义错误类型，提供详细的错误信息和错误码。错误类型定义如下：
-
-```go
-// SDKError SDK错误类型
-type SDKError struct {
-    Code    ErrorCode
-    Message string
-    Err     error
-}
-```
-
-SDK提供了多种便捷的错误创建函数，如NewInvalidInputError、NewUnauthorizedError等，具体实现请参考utils/errors.go文件。
-
-## 认证机制
-
-SDK支持多种认证方式，优先级从高到低为：
-1. 访问令牌认证（Bearer Token）：通过登录获取的authToken
-2. STS认证：使用AccessKeyID和AccessKeySecret
-3. API密钥认证：直接使用API密钥作为Bearer Token
-
-## 日志和调试
-
-SDK将提供可配置的日志级别，方便调试和问题排查。
+- 优先在 SDK 做 helper 组合，而不是为轻量消费场景新增服务端接口
+- SDK 返回尽量保持 typed model
+- 通用场景走基础接口，重复使用频率高的组合逻辑再沉到 helper

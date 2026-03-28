@@ -85,6 +85,54 @@ func TestGetArtifactByName(t *testing.T) {
 	}
 }
 
+func TestGetArtifactByCommitHashAndChildHashes(t *testing.T) {
+	call := 0
+	service := newArtifactTestService(t, func(w http.ResponseWriter, r *http.Request) {
+		call++
+		switch r.URL.Path {
+		case "/aiplorer/artifact/list":
+			payload := decodeBody(t, r)
+			if payload["commitHash"].(string) != "root-hash" {
+				t.Fatalf("unexpected commitHash payload: %#v", payload)
+			}
+			if payload["type"].(string) != "pkg" {
+				t.Fatalf("unexpected type payload: %#v", payload)
+			}
+			_, _ = w.Write([]byte(`{"code":0,"data":{"total":1,"data":[{"id":12,"name":"artifact-a","type":"pkg","commitHash":"root-hash"}]}}`))
+		case "/aiplorer/artifact":
+			_, _ = w.Write([]byte(`{"code":0,"data":{"id":12,"name":"artifact-a","type":"pkg","commitHash":"root-hash","dependencies":[{"id":21,"name":"child-a","type":"pkg","commitHash":"child-hash-a","parentId":12},{"id":22,"name":"child-b","type":"mcu","commitHash":"child-hash-b","parentId":21}]}}`))
+		default:
+			t.Fatalf("unexpected path: %s", r.URL.Path)
+		}
+	})
+
+	artifact, err := service.GetArtifactByCommitHash("root-hash", &models.ArtifactLookupOptions{
+		ArtifactType: "pkg",
+	})
+	if err != nil {
+		t.Fatalf("GetArtifactByCommitHash error: %v", err)
+	}
+	if artifact.ID == nil || *artifact.ID != 12 {
+		t.Fatalf("unexpected artifact: %#v", artifact)
+	}
+
+	childHashes, err := service.GetChildArtifactHashesByCommitHash("root-hash", &models.ArtifactLookupOptions{
+		ArtifactType: "pkg",
+	})
+	if err != nil {
+		t.Fatalf("GetChildArtifactHashesByCommitHash error: %v", err)
+	}
+	if len(childHashes.ChildHashes) != 2 {
+		t.Fatalf("unexpected child hashes: %#v", childHashes)
+	}
+	if childHashes.ChildHashes[0].CommitHash == nil || *childHashes.ChildHashes[0].CommitHash != "child-hash-a" {
+		t.Fatalf("unexpected first child hash: %#v", childHashes.ChildHashes[0])
+	}
+	if call != 4 {
+		t.Fatalf("unexpected call count: %d", call)
+	}
+}
+
 func TestGetArtifactTagSchemaJSONAndUpdateTags(t *testing.T) {
 	service := newArtifactTestService(t, func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {

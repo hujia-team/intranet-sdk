@@ -72,6 +72,7 @@ type ArtifactListReq struct {
 	FileHash         *string `json:"fileHash,omitempty"`
 	CommitHash       *string `json:"commitHash,omitempty"`
 	Name             *string `json:"name,omitempty"`
+	ProjectName      *string `json:"projectName,omitempty"`
 	Type             *string `json:"type,omitempty"`
 	IsVirtual        *bool   `json:"isVirtual,omitempty"`
 	ModulePath       *string `json:"modulePath,omitempty"`
@@ -96,6 +97,26 @@ type ArtifactLookupOptions struct {
 	ArtifactType    string
 	SemanticVersion string
 	IncludeVirtual  *bool
+	ProjectName     string
+}
+
+// ArtifactChildHashInfo describes one dependency node extracted from artifact lineage.
+type ArtifactChildHashInfo struct {
+	ID         *uint64 `json:"id,omitempty"`
+	ParentID   *uint64 `json:"parentId,omitempty"`
+	Name       *string `json:"name,omitempty"`
+	Type       *string `json:"type,omitempty"`
+	CommitHash *string `json:"commitHash,omitempty"`
+	ModulePath *string `json:"modulePath,omitempty"`
+}
+
+// ArtifactChildHashesInfo is a helper view built from artifact detail responses.
+type ArtifactChildHashesInfo struct {
+	RootArtifactID   *uint64                 `json:"rootArtifactId,omitempty"`
+	RootArtifactName *string                 `json:"rootArtifactName,omitempty"`
+	RootArtifactType *string                 `json:"rootArtifactType,omitempty"`
+	RootCommitHash   *string                 `json:"rootCommitHash,omitempty"`
+	ChildHashes      []ArtifactChildHashInfo `json:"childHashes,omitempty"`
 }
 
 // ArtifactTagSchemaInfo contains schema metadata.
