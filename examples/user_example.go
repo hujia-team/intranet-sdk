@@ -33,7 +33,7 @@ func main() {
 		fmt.Printf("用户昵称: %v\n", resp.Nickname)
 		fmt.Printf("用户头像: %v\n", resp.Avatar)
 		fmt.Printf("用户主目录路径: %v\n", resp.HomePath)
-		fmt.Printf("用户角色名称: %v\n", resp.RoleName)
+		fmt.Printf("用户角色ID列表: %v\n", resp.RoleIds)
 		fmt.Printf("用户部门名称: %v\n", resp.DepartmentName)
 	}
 }
