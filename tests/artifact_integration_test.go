@@ -2,9 +2,11 @@ package tests
 
 import (
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/hujia-team/intranet-sdk/models"
 	"github.com/hujia-team/intranet-sdk/utils"
@@ -188,6 +190,96 @@ func TestArtifactReadFlow(t *testing.T) {
 		t.Fatalf("按制品名获取下载地址响应无效: %#v", downloadURLByName)
 	}
 
+	if artifact.CommitHash != nil && *artifact.CommitHash != "" {
+		t.Log("\n7. 检查高优先级 helper...")
+
+		existsByCommitHash, err := client.Artifact.CheckExistsByCommitHash(*artifact.CommitHash, lookup)
+		if err != nil {
+			t.Fatalf("按 commit hash 检查制品是否存在失败: %v", err)
+		}
+		if !existsByCommitHash {
+			t.Fatalf("按 commit hash 检查结果异常，期望存在: %s", *artifact.CommitHash)
+		}
+		t.Logf("CheckExistsByCommitHash: %v", existsByCommitHash)
+
+		existsByName, err := client.Artifact.CheckExistsByName(artifactName, lookup)
+		if err != nil {
+			t.Fatalf("按名称检查制品是否存在失败: %v", err)
+		}
+		if !existsByName {
+			t.Fatalf("按名称检查结果异常，期望存在: %s", artifactName)
+		}
+		t.Logf("CheckExistsByName: %v", existsByName)
+
+		prepareDir := t.TempDir()
+		plan, err := client.Artifact.PrepareDownloadByCommitHash(*artifact.CommitHash, lookup, prepareDir)
+		if err != nil {
+			t.Fatalf("准备下载计划失败: %v", err)
+		}
+		if plan == nil || plan.Artifact == nil || plan.DownloadURL == nil || plan.Token == nil {
+			t.Fatalf("下载计划响应无效: %#v", plan)
+		}
+		t.Logf("下载计划目标路径: %s", plan.TargetPath)
+		t.Logf("下载计划文件路径: %s", plan.DownloadURL.FilePath)
+		t.Logf("下载计划 checksum: %s", plan.Checksum)
+		expectedTarget := filepath.Join(prepareDir, plan.DownloadURL.FileName)
+		if plan.TargetPath != expectedTarget {
+			t.Fatalf("下载计划目标路径不匹配: got=%s want=%s", plan.TargetPath, expectedTarget)
+		}
+
+		if os.Getenv("INTRANET_ARTIFACT_DOWNLOAD") == "true" {
+			downloadedPlan, err := client.Artifact.DownloadByCommitHash(*artifact.CommitHash, lookup, prepareDir)
+			if err != nil {
+				t.Fatalf("按 commit hash 下载制品失败: %v", err)
+			}
+			if downloadedPlan.SkippedExisting {
+				t.Fatal("首次下载不应命中 skip existing")
+			}
+			infoBefore, err := os.Stat(downloadedPlan.TargetPath)
+			if err != nil {
+				t.Fatalf("获取首次下载文件信息失败: %v", err)
+			}
+			t.Logf("首次下载完成: %s (%d bytes)", downloadedPlan.TargetPath, infoBefore.Size())
+
+			time.Sleep(1100 * time.Millisecond)
+
+			downloadedPlanAgain, err := client.Artifact.DownloadByCommitHash(*artifact.CommitHash, lookup, prepareDir)
+			if err != nil {
+				t.Fatalf("重复下载制品失败: %v", err)
+			}
+			if !downloadedPlanAgain.SkippedExisting {
+				t.Fatalf("重复下载未命中 skip existing: %#v", downloadedPlanAgain)
+			}
+			infoAfter, err := os.Stat(downloadedPlanAgain.TargetPath)
+			if err != nil {
+				t.Fatalf("获取重复下载文件信息失败: %v", err)
+			}
+			if !infoAfter.ModTime().Equal(infoBefore.ModTime()) {
+				t.Fatalf("重复下载不应覆盖已有文件: before=%s after=%s", infoBefore.ModTime(), infoAfter.ModTime())
+			}
+			t.Logf("重复下载命中 skip existing: %s", downloadedPlanAgain.TargetPath)
+		} else {
+			t.Log("INTRANET_ARTIFACT_DOWNLOAD 未开启，跳过真实下载与 skip existing 验证")
+		}
+
+		if artifact.MetadataPath != nil && *artifact.MetadataPath != "" {
+			metadata, err := client.Artifact.GetVersionMetadataByCommitHash(*artifact.CommitHash, lookup)
+			if err != nil {
+				t.Fatalf("按 commit hash 获取版本元数据失败: %v", err)
+			}
+			if metadata == nil || metadata.RawContent == nil || *metadata.RawContent == "" {
+				t.Fatalf("版本元数据响应无效: %#v", metadata)
+			}
+			t.Logf("元数据文件: %s", valueOrFallback(metadata.MetadataFileName, "<unknown>"))
+			t.Logf("元数据路径: %s", valueOrFallback(metadata.MetadataPath, "<unknown>"))
+			t.Logf("元数据解析字段数: %d", len(metadata.Parsed))
+		} else {
+			t.Log("当前制品没有 metadataPath，跳过版本元数据 helper 测试")
+		}
+	} else {
+		t.Log("\n7. 当前制品没有 commit hash，跳过高优先级 helper 测试")
+	}
+
 	t.Log("\n=== 测试完成 ===")
 }
 
@@ -279,4 +371,11 @@ func TestArtifactChildHashesByCommitHash(t *testing.T) {
 
 func uint64ToString(v uint64) string {
 	return strconv.FormatUint(v, 10)
+}
+
+func valueOrFallback(value *string, fallback string) string {
+	if value == nil || *value == "" {
+		return fallback
+	}
+	return *value
 }

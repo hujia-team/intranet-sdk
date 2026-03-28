@@ -2,12 +2,26 @@
 package services
 
 import (
+	"crypto/md5"
+	"crypto/sha1"
+	"crypto/sha256"
+	"crypto/sha512"
 	"encoding/json"
+	"encoding/xml"
 	"fmt"
+	"io"
+	"os"
+	"path/filepath"
+	"strings"
 
 	"github.com/hujia-team/intranet-sdk/client"
 	"github.com/hujia-team/intranet-sdk/models"
 	"github.com/hujia-team/intranet-sdk/utils"
+	jfrogartifactory "github.com/jfrog/jfrog-client-go/artifactory"
+	jfrogAuth "github.com/jfrog/jfrog-client-go/artifactory/auth"
+	jfrogServices "github.com/jfrog/jfrog-client-go/artifactory/services"
+	jfrogUtils "github.com/jfrog/jfrog-client-go/artifactory/services/utils"
+	jfrogConfig "github.com/jfrog/jfrog-client-go/config"
 )
 
 // ArtifactService defines artifact-management operations.
@@ -19,6 +33,12 @@ type ArtifactService interface {
 	GetArtifactByID(id uint64) (*models.ArtifactInfo, error)
 	GetArtifactByCommitHash(commitHash string, lookup *models.ArtifactLookupOptions) (*models.ArtifactInfo, error)
 	GetArtifactByName(name string, lookup *models.ArtifactLookupOptions) (*models.ArtifactInfo, error)
+	CheckExistsByCommitHash(commitHash string, lookup *models.ArtifactLookupOptions) (bool, error)
+	CheckExistsByName(name string, lookup *models.ArtifactLookupOptions) (bool, error)
+	PrepareDownloadByCommitHash(commitHash string, lookup *models.ArtifactLookupOptions, destination string) (*models.ArtifactDownloadPlan, error)
+	DownloadByCommitHash(commitHash string, lookup *models.ArtifactLookupOptions, destination string) (*models.ArtifactDownloadPlan, error)
+	DownloadByName(name string, lookup *models.ArtifactLookupOptions, destination string) (*models.ArtifactDownloadPlan, error)
+	GetVersionMetadataByCommitHash(commitHash string, lookup *models.ArtifactLookupOptions) (*models.ArtifactVersionMetadataInfo, error)
 	GetChildArtifactHashesByCommitHash(commitHash string, lookup *models.ArtifactLookupOptions) (*models.ArtifactChildHashesInfo, error)
 	GetArtifactCommitDiff(artifactIDA, artifactIDB uint64) (*models.ArtifactCommitDiffInfo, error)
 	GetArtifactTagSchema(version string) (*models.ArtifactTagSchemaInfo, error)
@@ -33,12 +53,16 @@ type ArtifactService interface {
 }
 
 type artifactService struct {
-	httpClient *client.HTTPClient
+	httpClient       *client.HTTPClient
+	downloadArtifact func(token *models.JfrogTokenInfo, filePath, targetDir string) error
 }
 
 // NewArtifactService creates a new artifact service.
 func NewArtifactService(httpClient *client.HTTPClient) ArtifactService {
-	return &artifactService{httpClient: httpClient}
+	return &artifactService{
+		httpClient:       httpClient,
+		downloadArtifact: downloadWithJFrog,
+	}
 }
 
 func (s *artifactService) CreateArtifact(artifact *models.ArtifactInfo) (*models.BaseMsgResp, error) {
@@ -149,13 +173,29 @@ func (s *artifactService) GetArtifactByName(name string, lookup *models.Artifact
 }
 
 func (s *artifactService) GetArtifactByCommitHash(commitHash string, lookup *models.ArtifactLookupOptions) (*models.ArtifactInfo, error) {
-	req := &models.ArtifactListReq{Page: 1, PageSize: 100, CommitHash: &commitHash}
+	var response struct {
+		Code int                 `json:"code"`
+		Msg  string              `json:"msg"`
+		Data models.ArtifactInfo `json:"data"`
+	}
+	req := buildCommitHashLookupRequest(commitHash, lookup)
+	if err := s.httpClient.Post("/aiplorer/artifact/by-commit-hash", req, &response); err != nil {
+		return nil, utils.NewAPIError("failed to get artifact by commit hash", err)
+	}
+	if response.Code != 0 {
+		return nil, utils.NewAPIError(response.Msg, nil)
+	}
+	return &response.Data, nil
+}
+
+func (s *artifactService) CheckExistsByCommitHash(commitHash string, lookup *models.ArtifactLookupOptions) (bool, error) {
+	req := &models.BatchCheckArtifactsExistReq{CommitHashes: []string{commitHash}}
 	if lookup != nil {
 		if lookup.ModulePath != "" {
 			req.ModulePath = &lookup.ModulePath
 		}
 		if lookup.ArtifactType != "" {
-			req.Type = &lookup.ArtifactType
+			req.ArtifactType = &lookup.ArtifactType
 		}
 		if lookup.SemanticVersion != "" {
 			req.SemanticVersion = &lookup.SemanticVersion
@@ -165,27 +205,117 @@ func (s *artifactService) GetArtifactByCommitHash(commitHash string, lookup *mod
 		}
 		req.IsVirtual = lookup.IncludeVirtual
 	}
+	result, err := s.batchCheckArtifactsExist(req)
+	if err != nil {
+		return false, err
+	}
+	return len(result.Data) > 0 && result.Data[0].Exists, nil
+}
 
-	result, err := s.ListArtifacts(req)
+func (s *artifactService) CheckExistsByName(name string, lookup *models.ArtifactLookupOptions) (bool, error) {
+	_, err := s.GetArtifactByName(name, lookup)
+	if err == nil {
+		return true, nil
+	}
+	if strings.Contains(err.Error(), "artifact not found by name") {
+		return false, nil
+	}
+	return false, err
+}
+
+func (s *artifactService) PrepareDownloadByCommitHash(commitHash string, lookup *models.ArtifactLookupOptions, destination string) (*models.ArtifactDownloadPlan, error) {
+	artifact, err := s.GetArtifactByCommitHash(commitHash, lookup)
 	if err != nil {
 		return nil, err
 	}
-	var matched []models.ArtifactInfo
-	for _, item := range result.Data {
-		if item.CommitHash != nil && *item.CommitHash == commitHash {
-			matched = append(matched, item)
-		}
-	}
-	if len(matched) == 0 {
-		return nil, utils.NewAPIError(fmt.Sprintf("artifact not found by commit hash: %s", commitHash), nil)
-	}
-	if len(matched) > 1 {
-		return nil, utils.NewAPIError(fmt.Sprintf("multiple artifacts found by commit hash: %s", commitHash), nil)
-	}
-	if matched[0].ID == nil {
+	if artifact.ID == nil {
 		return nil, utils.NewAPIError(fmt.Sprintf("artifact id missing for commit hash: %s", commitHash), nil)
 	}
-	return s.GetArtifactByID(*matched[0].ID)
+	if artifact.ProjectName == nil || *artifact.ProjectName == "" {
+		return nil, utils.NewAPIError(fmt.Sprintf("artifact project_name is empty for commit hash: %s", commitHash), nil)
+	}
+
+	token, err := s.GetJfrogToken(*artifact.ProjectName)
+	if err != nil {
+		return nil, err
+	}
+	downloadURL, err := s.GetArtifactDownloadURL(*artifact.ID, "artifact")
+	if err != nil {
+		return nil, err
+	}
+
+	targetPath := resolveDownloadTarget(destination, downloadURL.FileName)
+	checksum := ""
+	if artifact.FileHash != nil {
+		checksum = *artifact.FileHash
+	}
+	return &models.ArtifactDownloadPlan{
+		Artifact:    artifact,
+		Token:       token,
+		DownloadURL: downloadURL,
+		TargetPath:  targetPath,
+		Checksum:    checksum,
+	}, nil
+}
+
+func (s *artifactService) DownloadByCommitHash(commitHash string, lookup *models.ArtifactLookupOptions, destination string) (*models.ArtifactDownloadPlan, error) {
+	plan, err := s.PrepareDownloadByCommitHash(commitHash, lookup, destination)
+	if err != nil {
+		return nil, err
+	}
+	if plan.Token == nil || plan.DownloadURL == nil {
+		return nil, utils.NewAPIError("download plan is incomplete", nil)
+	}
+	targetDir := filepath.Dir(plan.TargetPath)
+	if err := os.MkdirAll(targetDir, 0o755); err != nil {
+		return nil, utils.NewInternalError("failed to create download target directory", err)
+	}
+	skipped, err := skipDownloadIfExisting(plan.TargetPath, plan.Checksum)
+	if err != nil {
+		return nil, err
+	}
+	if skipped {
+		plan.SkippedExisting = true
+		return plan, nil
+	}
+	if err := s.downloadArtifact(plan.Token, plan.DownloadURL.FilePath, targetDir); err != nil {
+		return nil, err
+	}
+	return plan, nil
+}
+
+func (s *artifactService) DownloadByName(name string, lookup *models.ArtifactLookupOptions, destination string) (*models.ArtifactDownloadPlan, error) {
+	artifact, err := s.GetArtifactByName(name, lookup)
+	if err != nil {
+		return nil, err
+	}
+	if artifact.CommitHash == nil || *artifact.CommitHash == "" {
+		return nil, utils.NewAPIError(fmt.Sprintf("artifact commit hash is empty for artifact: %s", name), nil)
+	}
+	return s.DownloadByCommitHash(*artifact.CommitHash, lookup, destination)
+}
+
+func (s *artifactService) GetVersionMetadataByCommitHash(commitHash string, lookup *models.ArtifactLookupOptions) (*models.ArtifactVersionMetadataInfo, error) {
+	var response struct {
+		Code int                                `json:"code"`
+		Msg  string                             `json:"msg"`
+		Data models.ArtifactVersionMetadataInfo `json:"data"`
+	}
+	req := buildCommitHashLookupRequest(commitHash, lookup)
+	if err := s.httpClient.Post("/aiplorer/artifact/version-metadata", req, &response); err != nil {
+		return nil, utils.NewAPIError("failed to get artifact version metadata", err)
+	}
+	if response.Code != 0 {
+		return nil, utils.NewAPIError(response.Msg, nil)
+	}
+	if response.Data.RawContent != nil && *response.Data.RawContent != "" {
+		parsed, err := parseVersionMetadata(*response.Data.RawContent, valueOrEmpty(response.Data.MetadataFileName))
+		if err != nil {
+			return nil, err
+		}
+		response.Data.Parsed = parsed
+	}
+	return &response.Data, nil
 }
 
 func (s *artifactService) GetChildArtifactHashesByCommitHash(commitHash string, lookup *models.ArtifactLookupOptions) (*models.ArtifactChildHashesInfo, error) {
@@ -394,6 +524,232 @@ func (s *artifactService) ParseArtifactTags(tags string, schema any) (map[string
 		return nil, utils.NewAPIError("artifact tag schema version does not match tag schema_version", nil)
 	}
 	return parsedTags, nil
+}
+
+func (s *artifactService) batchCheckArtifactsExist(req *models.BatchCheckArtifactsExistReq) (*models.BatchArtifactExistenceResp, error) {
+	var response struct {
+		Code int                               `json:"code"`
+		Msg  string                            `json:"msg"`
+		Data models.BatchArtifactExistenceResp `json:"data"`
+	}
+	if err := s.httpClient.Post("/aiplorer/artifact/batch-exists", req, &response); err != nil {
+		return nil, utils.NewAPIError("failed to batch check artifact existence", err)
+	}
+	if response.Code != 0 {
+		return nil, utils.NewAPIError(response.Msg, nil)
+	}
+	return &response.Data, nil
+}
+
+func buildCommitHashLookupRequest(commitHash string, lookup *models.ArtifactLookupOptions) *models.GetArtifactByCommitHashReq {
+	req := &models.GetArtifactByCommitHashReq{CommitHash: commitHash}
+	if lookup == nil {
+		return req
+	}
+	if lookup.ModulePath != "" {
+		req.ModulePath = &lookup.ModulePath
+	}
+	if lookup.ArtifactType != "" {
+		req.ArtifactType = &lookup.ArtifactType
+	}
+	if lookup.SemanticVersion != "" {
+		req.SemanticVersion = &lookup.SemanticVersion
+	}
+	if lookup.IncludeVirtual != nil {
+		req.IsVirtual = lookup.IncludeVirtual
+	}
+	if lookup.ProjectName != "" {
+		req.ProjectName = &lookup.ProjectName
+	}
+	return req
+}
+
+func resolveDownloadTarget(destination, fileName string) string {
+	if destination == "" {
+		return fileName
+	}
+	if strings.HasSuffix(destination, string(os.PathSeparator)) {
+		return filepath.Join(destination, fileName)
+	}
+	info, err := os.Stat(destination)
+	if err == nil && info.IsDir() {
+		return filepath.Join(destination, fileName)
+	}
+	if filepath.Ext(destination) != "" {
+		return destination
+	}
+	return filepath.Join(destination, fileName)
+}
+
+func valueOrEmpty(value *string) string {
+	if value == nil {
+		return ""
+	}
+	return *value
+}
+
+func downloadWithJFrog(token *models.JfrogTokenInfo, filePath, targetDir string) error {
+	rtDetails := jfrogAuth.NewArtifactoryDetails()
+	baseURL := strings.TrimRight(token.URL, "/")
+	if !strings.HasSuffix(baseURL, "/artifactory") {
+		baseURL += "/artifactory"
+	}
+	rtDetails.SetUrl(baseURL)
+	rtDetails.SetAccessToken(token.AccessToken)
+
+	serviceConfig, err := jfrogConfig.NewConfigBuilder().SetServiceDetails(rtDetails).Build()
+	if err != nil {
+		return utils.NewInternalError("failed to build jfrog service config", err)
+	}
+
+	manager, err := jfrogartifactory.New(serviceConfig)
+	if err != nil {
+		return utils.NewInternalError("failed to create jfrog client", err)
+	}
+
+	params := jfrogServices.NewDownloadParams()
+	params.CommonParams = &jfrogUtils.CommonParams{
+		Pattern:   filePath,
+		Recursive: false,
+		Target:    targetDir + string(os.PathSeparator),
+	}
+	params.Flat = true
+
+	downloaded, failed, err := manager.DownloadFiles(params)
+	if err != nil {
+		return utils.NewInternalError("failed to download artifact with jfrog client", err)
+	}
+	if downloaded == 0 || failed > 0 {
+		return utils.NewInternalError("jfrog download did not complete successfully", nil)
+	}
+	return nil
+}
+
+func parseVersionMetadata(rawContent, fileName string) (map[string]any, error) {
+	lowerName := strings.ToLower(fileName)
+	if strings.HasSuffix(lowerName, ".json") {
+		return models.ParseJSON(rawContent)
+	}
+	if strings.HasSuffix(lowerName, ".xml") {
+		return parseXMLMetadata(rawContent)
+	}
+
+	parsed, err := models.ParseJSON(rawContent)
+	if err == nil {
+		return parsed, nil
+	}
+	return parseXMLMetadata(rawContent)
+}
+
+type xmlNode struct {
+	XMLName xml.Name
+	Attrs   []xml.Attr `xml:",any,attr"`
+	Text    string     `xml:",chardata"`
+	Nodes   []xmlNode  `xml:",any"`
+}
+
+func parseXMLMetadata(rawContent string) (map[string]any, error) {
+	var root xmlNode
+	if err := xml.Unmarshal([]byte(rawContent), &root); err != nil {
+		return nil, utils.NewAPIError("failed to parse version metadata", err)
+	}
+	return map[string]any{
+		root.XMLName.Local: xmlNodeToAny(root),
+	}, nil
+}
+
+func xmlNodeToAny(node xmlNode) any {
+	result := map[string]any{}
+	for _, attr := range node.Attrs {
+		result["@"+attr.Name.Local] = attr.Value
+	}
+	text := strings.TrimSpace(node.Text)
+	if len(node.Nodes) == 0 {
+		if len(result) == 0 {
+			return text
+		}
+		if text != "" {
+			result["#text"] = text
+		}
+		return result
+	}
+	for _, child := range node.Nodes {
+		value := xmlNodeToAny(child)
+		existing, exists := result[child.XMLName.Local]
+		if !exists {
+			result[child.XMLName.Local] = value
+			continue
+		}
+		switch typed := existing.(type) {
+		case []any:
+			result[child.XMLName.Local] = append(typed, value)
+		default:
+			result[child.XMLName.Local] = []any{typed, value}
+		}
+	}
+	if text != "" {
+		result["#text"] = text
+	}
+	return result
+}
+
+func skipDownloadIfExisting(targetPath, checksum string) (bool, error) {
+	info, err := os.Stat(targetPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return false, nil
+		}
+		return false, utils.NewInternalError("failed to stat existing artifact file", err)
+	}
+	if info.IsDir() {
+		return false, nil
+	}
+	if checksum == "" {
+		return true, nil
+	}
+	matched, err := verifyFileHash(targetPath, checksum)
+	if err != nil {
+		return false, err
+	}
+	return matched, nil
+}
+
+func verifyFileHash(targetPath, expected string) (bool, error) {
+	file, err := os.Open(targetPath)
+	if err != nil {
+		return false, utils.NewInternalError("failed to open existing artifact file", err)
+	}
+	defer file.Close()
+
+	hasher, err := newHasher(expected)
+	if err != nil {
+		return false, err
+	}
+	if _, err := io.Copy(hasher, file); err != nil {
+		return false, utils.NewInternalError("failed to hash existing artifact file", err)
+	}
+	actual := fmt.Sprintf("%x", hasher.Sum(nil))
+	return strings.EqualFold(actual, strings.TrimSpace(expected)), nil
+}
+
+func newHasher(expected string) (hashWriter, error) {
+	switch len(strings.TrimSpace(expected)) {
+	case 32:
+		return md5.New(), nil
+	case 40:
+		return sha1.New(), nil
+	case 64:
+		return sha256.New(), nil
+	case 128:
+		return sha512.New(), nil
+	default:
+		return nil, utils.NewInvalidInputError("unsupported artifact checksum length", nil)
+	}
+}
+
+type hashWriter interface {
+	io.Writer
+	Sum(b []byte) []byte
 }
 
 func mustJSON(v any) string {

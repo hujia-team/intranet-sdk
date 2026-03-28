@@ -1,4 +1,4 @@
-.PHONY: test test-unit test-integration help build release-patch release-minor release-major
+.PHONY: test test-unit test-integration test-artifact-integration help build release-patch release-minor release-major
 
 # 获取当前版本
 CURRENT_VERSION := $(shell git tag -l "v*" | sort -V | tail -n 1)
@@ -14,6 +14,7 @@ help:
 	@echo "  make test              - 运行所有测试（单元测试 + 集成测试）"
 	@echo "  make test-unit         - 运行单元测试"
 	@echo "  make test-integration  - 运行集成测试"
+	@echo "  make test-artifact-integration - 运行制品相关集成测试"
 	@echo "  make test-verbose      - 运行所有测试（详细输出）"
 	@echo ""
 	@echo "构建相关:"
@@ -48,6 +49,15 @@ test-integration:
 		exit 1; \
 	fi
 	@GOWORK=off go test -v ./tests -run Integration
+
+test-artifact-integration:
+	@echo "运行制品相关集成测试..."
+	@if [ ! -f .env ]; then \
+		echo "错误: .env 文件不存在"; \
+		echo "请复制 .env.example 为 .env 并填入配置"; \
+		exit 1; \
+	fi
+	@GOWORK=off go test -v ./tests -run 'TestArtifact(ReadFlow|ChildHashesByCommitHash)' -count=1
 
 # 运行所有测试（详细输出）
 test-verbose:

@@ -10,6 +10,12 @@
 - `sdk.Artifact.GetArtifactByID`
 - `sdk.Artifact.GetArtifactByName`
 - `sdk.Artifact.GetArtifactByCommitHash`
+- `sdk.Artifact.CheckExistsByCommitHash`
+- `sdk.Artifact.CheckExistsByName`
+- `sdk.Artifact.PrepareDownloadByCommitHash`
+- `sdk.Artifact.DownloadByCommitHash`
+- `sdk.Artifact.DownloadByName`
+- `sdk.Artifact.GetVersionMetadataByCommitHash`
 - `sdk.Artifact.GetChildArtifactHashesByCommitHash`
 - `sdk.Artifact.GetArtifactTagSchema`
 - `sdk.Artifact.ParseArtifactTags`
@@ -53,10 +59,110 @@ fmt.Printf("root artifact: %s (%s)\n", *artifact.Name, *artifact.Type)
 
 注意：
 
-- 服务端 `artifact/list` 当前对 `commitHash` 是模糊过滤
-- SDK helper 会在结果里再次做精确匹配
+- SDK 现在直接调用服务端精确 `commit_hash` 查询接口
 - 建议传 `ArtifactType`
   常见值是 `pkg`、`app`
+
+## 存在性检查
+
+```go
+exists, err := sdk.Artifact.CheckExistsByCommitHash(
+	"89a84fcee9c8db4c7d8ccb3547cfcc0a",
+	&models.ArtifactLookupOptions{
+		ArtifactType: "pkg",
+	},
+)
+if err != nil {
+	return err
+}
+
+fmt.Printf("exists by commit hash: %v\n", exists)
+```
+
+也可以按名称做唯一性检查：
+
+```go
+exists, err := sdk.Artifact.CheckExistsByName(
+	"D4Q2_V00.29.00_202603272037_release_snapshot_aarch64",
+	&models.ArtifactLookupOptions{
+		ArtifactType: "pkg",
+	},
+)
+```
+
+## 下载计划与下载
+
+推荐先准备下载计划，再决定是否执行真正下载。
+
+```go
+plan, err := sdk.Artifact.PrepareDownloadByCommitHash(
+	"89a84fcee9c8db4c7d8ccb3547cfcc0a",
+	&models.ArtifactLookupOptions{
+		ArtifactType: "pkg",
+	},
+	"./downloads",
+)
+if err != nil {
+	return err
+}
+
+fmt.Printf("target path: %s\n", plan.TargetPath)
+fmt.Printf("jfrog file path: %s\n", plan.DownloadURL.FilePath)
+fmt.Printf("checksum: %s\n", plan.Checksum)
+```
+
+执行下载时，SDK 内部会复用 JFrog 原生 Go client：
+
+```go
+plan, err := sdk.Artifact.DownloadByCommitHash(
+	"89a84fcee9c8db4c7d8ccb3547cfcc0a",
+	&models.ArtifactLookupOptions{
+		ArtifactType: "pkg",
+	},
+	"./downloads",
+)
+if err != nil {
+	return err
+}
+
+fmt.Printf("downloaded to: %s\n", plan.TargetPath)
+```
+
+也可以按名称直接下载：
+
+```go
+_, err := sdk.Artifact.DownloadByName(
+	"D4Q2_V00.29.00_202603272037_release_snapshot_aarch64",
+	&models.ArtifactLookupOptions{
+		ArtifactType: "pkg",
+	},
+	"./downloads",
+)
+```
+
+## 版本元数据
+
+```go
+metadata, err := sdk.Artifact.GetVersionMetadataByCommitHash(
+	"89a84fcee9c8db4c7d8ccb3547cfcc0a",
+	&models.ArtifactLookupOptions{
+		ArtifactType: "pkg",
+	},
+)
+if err != nil {
+	return err
+}
+
+fmt.Printf("metadata file: %s\n", *metadata.MetadataFileName)
+fmt.Printf("raw size: %d\n", len(*metadata.RawContent))
+fmt.Printf("parsed fields: %d\n", len(metadata.Parsed))
+```
+
+说明：
+
+- `version.json` / `mcu_version.json` 会解析为 JSON map
+- `bsp_version.xml` 会被转成通用 map 结构
+- 原始内容始终保留在 `RawContent`
 
 ## 获取递归子制品 hashes
 
@@ -81,10 +187,9 @@ for _, item := range childHashes.ChildHashes {
 
 底层逻辑：
 
-1. 调 `/aiplorer/artifact/list`
-2. 用 `commit_hash` 精确匹配根制品
-3. 再调 `/aiplorer/artifact`
-4. 从递归 `dependencies` 提取所有子制品的 `commit_hash`
+1. 调 `/aiplorer/artifact/by-commit-hash`
+2. 服务端精确定位根制品
+3. 再从详情里的递归 `dependencies` 提取所有子制品的 `commit_hash`
 
 ## 标签与 schema
 

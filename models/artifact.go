@@ -83,6 +83,7 @@ type ArtifactListReq struct {
 	PipelineID       *string `json:"pipelineId,omitempty"`
 	PipelineURL      *string `json:"pipelineUrl,omitempty"`
 	BuildDate        *int64  `json:"buildDate,omitempty"`
+	ExactCommitHash  *bool   `json:"exactCommitHash,omitempty"`
 }
 
 // ArtifactListResp is the paged artifact list response body.
@@ -141,6 +142,60 @@ type ArtifactDownloadURLInfo struct {
 	ExpireTime  string `json:"expireTime"`
 	FileName    string `json:"fileName"`
 	FilePath    string `json:"filePath"`
+}
+
+// ArtifactExistenceInfo describes whether an artifact exists for a lookup target.
+type ArtifactExistenceInfo struct {
+	CommitHash string  `json:"commitHash"`
+	Exists     bool    `json:"exists"`
+	ArtifactID *uint64 `json:"artifactId,omitempty"`
+	Name       *string `json:"name,omitempty"`
+}
+
+// BatchArtifactExistenceResp is the batch existence check response body.
+type BatchArtifactExistenceResp struct {
+	Data []ArtifactExistenceInfo `json:"data"`
+}
+
+// GetArtifactByCommitHashReq looks up an artifact by exact commit hash.
+type GetArtifactByCommitHashReq struct {
+	CommitHash      string  `json:"commitHash"`
+	ModulePath      *string `json:"modulePath,omitempty"`
+	ArtifactType    *string `json:"type,omitempty"`
+	SemanticVersion *string `json:"semanticVersion,omitempty"`
+	IsVirtual       *bool   `json:"isVirtual,omitempty"`
+	ProjectName     *string `json:"projectName,omitempty"`
+}
+
+// BatchCheckArtifactsExistReq performs a batch existence check by exact commit hashes.
+type BatchCheckArtifactsExistReq struct {
+	CommitHashes    []string `json:"commitHashes"`
+	ModulePath      *string  `json:"modulePath,omitempty"`
+	ArtifactType    *string  `json:"type,omitempty"`
+	SemanticVersion *string  `json:"semanticVersion,omitempty"`
+	IsVirtual       *bool    `json:"isVirtual,omitempty"`
+	ProjectName     *string  `json:"projectName,omitempty"`
+}
+
+// ArtifactVersionMetadataInfo contains version metadata fetched by commit hash.
+type ArtifactVersionMetadataInfo struct {
+	ArtifactID       *uint64        `json:"artifactId,omitempty"`
+	CommitHash       *string        `json:"commitHash,omitempty"`
+	Name             *string        `json:"name,omitempty"`
+	MetadataPath     *string        `json:"metadataPath,omitempty"`
+	MetadataFileName *string        `json:"metadataFileName,omitempty"`
+	RawContent       *string        `json:"rawContent,omitempty"`
+	Parsed           map[string]any `json:"-"`
+}
+
+// ArtifactDownloadPlan describes a resolved download plan for one artifact.
+type ArtifactDownloadPlan struct {
+	Artifact        *ArtifactInfo            `json:"artifact,omitempty"`
+	Token           *JfrogTokenInfo          `json:"token,omitempty"`
+	DownloadURL     *ArtifactDownloadURLInfo `json:"downloadUrl,omitempty"`
+	TargetPath      string                   `json:"targetPath"`
+	Checksum        string                   `json:"checksum,omitempty"`
+	SkippedExisting bool                     `json:"skippedExisting,omitempty"`
 }
 
 // RepoDiff groups artifact commit differences by repository.

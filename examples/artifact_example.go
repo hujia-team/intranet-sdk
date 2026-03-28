@@ -49,6 +49,27 @@ func main() {
 	}
 	fmt.Printf("制品名称: %s\n", *artifact.Name)
 
+	if artifact.CommitHash != nil {
+		exists, err := sdk.Artifact.CheckExistsByCommitHash(*artifact.CommitHash, nil)
+		if err != nil {
+			fmt.Printf("按 commit hash 检查是否存在失败: %v\n", err)
+			return
+		}
+		fmt.Printf("按 commit hash 检查存在性: %v\n", exists)
+
+		plan, err := sdk.Artifact.PrepareDownloadByCommitHash(*artifact.CommitHash, nil, "./downloads")
+		if err != nil {
+			fmt.Printf("准备下载计划失败: %v\n", err)
+			return
+		}
+		fmt.Printf("下载目标路径: %s\n", plan.TargetPath)
+
+		metadata, err := sdk.Artifact.GetVersionMetadataByCommitHash(*artifact.CommitHash, nil)
+		if err == nil && metadata != nil && metadata.MetadataFileName != nil {
+			fmt.Printf("版本元数据文件: %s\n", *metadata.MetadataFileName)
+		}
+	}
+
 	if artifact.ID != nil {
 		download, err := sdk.Artifact.GetArtifactDownloadURL(*artifact.ID, "")
 		if err != nil {
