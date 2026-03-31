@@ -28,6 +28,7 @@ type ArtifactDependencyInfo struct {
 	UpdatedAt   *int64       `json:"updatedAt,omitempty"`
 	Name        *string      `json:"name,omitempty"`
 	Type        *string      `json:"type,omitempty"`
+	Platform    *string      `json:"platform,omitempty"`
 	IsVirtual   *bool        `json:"isVirtual,omitempty"`
 	CommitHash  *string      `json:"commitHash,omitempty"`
 	ModulePath  *string      `json:"modulePath,omitempty"`
@@ -47,6 +48,7 @@ type ArtifactInfo struct {
 	CommitHash       *string                  `json:"commitHash,omitempty"`
 	Name             *string                  `json:"name,omitempty"`
 	Type             *string                  `json:"type,omitempty"`
+	Platform         *string                  `json:"platform,omitempty"`
 	ProjectName      *string                  `json:"projectName,omitempty"`
 	IsVirtual        *bool                    `json:"isVirtual,omitempty"`
 	ModulePath       *string                  `json:"modulePath,omitempty"`
@@ -74,6 +76,7 @@ type ArtifactListReq struct {
 	Name             *string `json:"name,omitempty"`
 	ProjectName      *string `json:"projectName,omitempty"`
 	Type             *string `json:"type,omitempty"`
+	Platform         *string `json:"platform,omitempty"`
 	IsVirtual        *bool   `json:"isVirtual,omitempty"`
 	ModulePath       *string `json:"modulePath,omitempty"`
 	SemanticVersion  *string `json:"semanticVersion,omitempty"`
@@ -96,6 +99,7 @@ type ArtifactListResp struct {
 type ArtifactLookupOptions struct {
 	ModulePath      string
 	ArtifactType    string
+	Platform        string
 	SemanticVersion string
 	IncludeVirtual  *bool
 	ProjectName     string
@@ -162,6 +166,7 @@ type GetArtifactByCommitHashReq struct {
 	CommitHash      string  `json:"commitHash"`
 	ModulePath      *string `json:"modulePath,omitempty"`
 	ArtifactType    *string `json:"type,omitempty"`
+	Platform        *string `json:"platform,omitempty"`
 	SemanticVersion *string `json:"semanticVersion,omitempty"`
 	IsVirtual       *bool   `json:"isVirtual,omitempty"`
 	ProjectName     *string `json:"projectName,omitempty"`
@@ -172,6 +177,7 @@ type BatchCheckArtifactsExistReq struct {
 	CommitHashes    []string `json:"commitHashes"`
 	ModulePath      *string  `json:"modulePath,omitempty"`
 	ArtifactType    *string  `json:"type,omitempty"`
+	Platform        *string  `json:"platform,omitempty"`
 	SemanticVersion *string  `json:"semanticVersion,omitempty"`
 	IsVirtual       *bool    `json:"isVirtual,omitempty"`
 	ProjectName     *string  `json:"projectName,omitempty"`
