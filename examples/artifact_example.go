@@ -48,6 +48,9 @@ func main() {
 		return
 	}
 	fmt.Printf("制品名称: %s\n", *artifact.Name)
+	if artifact.Type != nil {
+		fmt.Printf("存储类型: %s\n", *artifact.Type)
+	}
 
 	if artifact.CommitHash != nil {
 		exists, err := sdk.Artifact.CheckExistsByCommitHash(*artifact.CommitHash, nil)

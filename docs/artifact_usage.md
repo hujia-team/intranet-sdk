@@ -61,7 +61,16 @@ fmt.Printf("root artifact: %s (%s)\n", *artifact.Name, *artifact.Type)
 
 - SDK 现在直接调用服务端精确 `commit_hash` 查询接口
 - 建议传 `ArtifactType`
-  常见值是 `pkg`、`app`
+  常见值是 `pkg`、`app`、`mcu`、`bsp`、`data_proto`
+
+## 文件名与展示名
+
+- `artifact.name` 是展示名，不要求包含 `commit_hash`
+- 制品仓库里的物理文件名仍要求在文件末尾、扩展名前包含 `commit_hash`
+- 例如：
+  - `data_proto_G1Q3_aarch64-015ce81dc113ad8bf3d5c0c5c4126b16.tar.gz`
+  - `1.0.0-9a571910494efb10404e75dab6b7b671.tar.gz`
+- 当你在 SDK 里按名称查询时，传的是展示名；当你解析物理文件或构建消息时，要以文件名末尾的 hash 作为 `commit_hash` 来源之一
 
 ## 存在性检查
 
