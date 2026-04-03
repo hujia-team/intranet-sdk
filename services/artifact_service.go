@@ -142,8 +142,8 @@ func (s *artifactService) GetArtifactByName(name string, lookup *models.Artifact
 		if lookup.ArtifactType != "" {
 			req.Type = &lookup.ArtifactType
 		}
-		if lookup.Platform != "" {
-			req.Platform = &lookup.Platform
+		if lookup.Platform != nil {
+			req.Platform = lookup.Platform
 		}
 		if lookup.SemanticVersion != "" {
 			req.SemanticVersion = &lookup.SemanticVersion
@@ -200,8 +200,8 @@ func (s *artifactService) CheckExistsByCommitHash(commitHash string, lookup *mod
 		if lookup.ArtifactType != "" {
 			req.ArtifactType = &lookup.ArtifactType
 		}
-		if lookup.Platform != "" {
-			req.Platform = &lookup.Platform
+		if lookup.Platform != nil {
+			req.Platform = lookup.Platform
 		}
 		if lookup.SemanticVersion != "" {
 			req.SemanticVersion = &lookup.SemanticVersion
@@ -558,8 +558,8 @@ func buildCommitHashLookupRequest(commitHash string, lookup *models.ArtifactLook
 	if lookup.ArtifactType != "" {
 		req.ArtifactType = &lookup.ArtifactType
 	}
-	if lookup.Platform != "" {
-		req.Platform = &lookup.Platform
+	if lookup.Platform != nil {
+		req.Platform = lookup.Platform
 	}
 	if lookup.SemanticVersion != "" {
 		req.SemanticVersion = &lookup.SemanticVersion

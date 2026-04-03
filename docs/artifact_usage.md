@@ -62,6 +62,10 @@ fmt.Printf("root artifact: %s (%s)\n", *artifact.Name, *artifact.Type)
 - SDK 现在直接调用服务端精确 `commit_hash` 查询接口
 - 建议传 `ArtifactType`
   常见值是 `pkg`、`app`、`mcu`、`bsp`、`data_proto`
+- `ArtifactLookupOptions.Platform` 是 `*string`
+  - `nil` 表示不按平台过滤
+  - `&"linux"` 表示按 `linux` 过滤
+  - `&""` 表示显式匹配空平台制品
 
 ## 文件名与展示名
 
@@ -86,6 +90,19 @@ if err != nil {
 }
 
 fmt.Printf("exists by commit hash: %v\n", exists)
+```
+
+如果要显式查询 `platform=""` 的制品，可以这样传：
+
+```go
+emptyPlatform := ""
+artifact, err := sdk.Artifact.GetArtifactByCommitHash(
+	"89a84fcee9c8db4c7d8ccb3547cfcc0a",
+	&models.ArtifactLookupOptions{
+		ArtifactType: "app",
+		Platform:     &emptyPlatform,
+	},
+)
 ```
 
 也可以按名称做唯一性检查：

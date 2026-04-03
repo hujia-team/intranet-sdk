@@ -99,7 +99,7 @@ type ArtifactListResp struct {
 type ArtifactLookupOptions struct {
 	ModulePath      string
 	ArtifactType    string
-	Platform        string
+	Platform        *string
 	SemanticVersion string
 	IncludeVirtual  *bool
 	ProjectName     string

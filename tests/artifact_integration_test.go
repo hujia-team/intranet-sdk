@@ -27,8 +27,8 @@ func loadArtifactTestConfig(t *testing.T) (string, *models.ArtifactLookupOptions
 	if artifactType := os.Getenv("INTRANET_ARTIFACT_TYPE"); artifactType != "" {
 		lookup.ArtifactType = artifactType
 	}
-	if platform := os.Getenv("INTRANET_ARTIFACT_PLATFORM"); platform != "" {
-		lookup.Platform = platform
+	if platform, ok := os.LookupEnv("INTRANET_ARTIFACT_PLATFORM"); ok {
+		lookup.Platform = &platform
 	}
 	if semanticVersion := os.Getenv("INTRANET_ARTIFACT_SEMANTIC_VERSION"); semanticVersion != "" {
 		lookup.SemanticVersion = semanticVersion
@@ -65,8 +65,8 @@ func TestArtifactReadFlow(t *testing.T) {
 	if lookup.ArtifactType != "" {
 		listReq.Type = &lookup.ArtifactType
 	}
-	if lookup.Platform != "" {
-		listReq.Platform = &lookup.Platform
+	if lookup.Platform != nil {
+		listReq.Platform = lookup.Platform
 	}
 	if lookup.SemanticVersion != "" {
 		listReq.SemanticVersion = &lookup.SemanticVersion

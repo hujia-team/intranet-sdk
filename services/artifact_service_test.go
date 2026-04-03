@@ -133,6 +133,67 @@ func TestGetArtifactByCommitHashAndChildHashes(t *testing.T) {
 	}
 }
 
+func TestGetArtifactByCommitHashAllowsExplicitEmptyPlatform(t *testing.T) {
+	service := newArtifactTestService(t, func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/aiplorer/artifact/by-commit-hash" {
+			t.Fatalf("unexpected path: %s", r.URL.Path)
+		}
+		payload := decodeBody(t, r)
+		if payload["commitHash"].(string) != "root-hash" {
+			t.Fatalf("unexpected commitHash payload: %#v", payload)
+		}
+		platform, ok := payload["platform"]
+		if !ok {
+			t.Fatalf("expected platform field to be present, payload: %#v", payload)
+		}
+		if platform.(string) != "" {
+			t.Fatalf("expected empty platform payload, got %#v", platform)
+		}
+		_, _ = w.Write([]byte(`{"code":0,"data":{"id":12,"name":"artifact-a","type":"app","commitHash":"root-hash","platform":""}}`))
+	})
+
+	emptyPlatform := ""
+	artifact, err := service.GetArtifactByCommitHash("root-hash", &models.ArtifactLookupOptions{
+		ArtifactType: "app",
+		Platform:     &emptyPlatform,
+	})
+	if err != nil {
+		t.Fatalf("GetArtifactByCommitHash error: %v", err)
+	}
+	if artifact.ID == nil || *artifact.ID != 12 {
+		t.Fatalf("unexpected artifact: %#v", artifact)
+	}
+}
+
+func TestCheckExistsByCommitHashAllowsExplicitEmptyPlatform(t *testing.T) {
+	service := newArtifactTestService(t, func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/aiplorer/artifact/batch-exists" {
+			t.Fatalf("unexpected path: %s", r.URL.Path)
+		}
+		payload := decodeBody(t, r)
+		platform, ok := payload["platform"]
+		if !ok {
+			t.Fatalf("expected platform field to be present, payload: %#v", payload)
+		}
+		if platform.(string) != "" {
+			t.Fatalf("expected empty platform payload, got %#v", platform)
+		}
+		_, _ = w.Write([]byte(`{"code":0,"data":{"data":[{"commitHash":"root-hash","exists":true,"artifactId":12,"name":"artifact-a"}]}}`))
+	})
+
+	emptyPlatform := ""
+	exists, err := service.CheckExistsByCommitHash("root-hash", &models.ArtifactLookupOptions{
+		ArtifactType: "app",
+		Platform:     &emptyPlatform,
+	})
+	if err != nil {
+		t.Fatalf("CheckExistsByCommitHash error: %v", err)
+	}
+	if !exists {
+		t.Fatal("expected artifact to exist")
+	}
+}
+
 func TestCheckExistsPrepareDownloadAndVersionMetadata(t *testing.T) {
 	service := newArtifactTestService(t, func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
