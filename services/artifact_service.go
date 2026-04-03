@@ -192,30 +192,15 @@ func (s *artifactService) GetArtifactByCommitHash(commitHash string, lookup *mod
 }
 
 func (s *artifactService) CheckExistsByCommitHash(commitHash string, lookup *models.ArtifactLookupOptions) (bool, error) {
-	req := &models.BatchCheckArtifactsExistReq{CommitHashes: []string{commitHash}}
-	if lookup != nil {
-		if lookup.ModulePath != "" {
-			req.ModulePath = &lookup.ModulePath
-		}
-		if lookup.ArtifactType != "" {
-			req.ArtifactType = &lookup.ArtifactType
-		}
-		if lookup.Platform != nil {
-			req.Platform = lookup.Platform
-		}
-		if lookup.SemanticVersion != "" {
-			req.SemanticVersion = &lookup.SemanticVersion
-		}
-		if lookup.ProjectName != "" {
-			req.ProjectName = &lookup.ProjectName
-		}
-		req.IsVirtual = lookup.IncludeVirtual
-	}
-	result, err := s.batchCheckArtifactsExist(req)
+	artifact, err := s.GetArtifactByCommitHash(commitHash, lookup)
 	if err != nil {
+		if strings.Contains(err.Error(), "artifact not found by commit hash") {
+			return false, nil
+		}
 		return false, err
 	}
-	return len(result.Data) > 0 && result.Data[0].Exists, nil
+	return artifact.FullPath != nil && *artifact.FullPath != "" &&
+		artifact.FileHash != nil && *artifact.FileHash != "", nil
 }
 
 func (s *artifactService) CheckExistsByName(name string, lookup *models.ArtifactLookupOptions) (bool, error) {

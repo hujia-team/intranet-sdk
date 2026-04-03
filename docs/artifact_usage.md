@@ -92,6 +92,12 @@ if err != nil {
 fmt.Printf("exists by commit hash: %v\n", exists)
 ```
 
+说明：
+
+- `CheckExistsByCommitHash` 判断的是“实体制品是否存在”
+- 只有服务端能定位到制品，且返回的 `fullPath` 和 `fileHash` 都非空时，SDK 才会返回 `true`
+- 仅存在虚拟制品、聚合制品，或者 `fullPath` / `fileHash` 缺失的残缺记录时，会返回 `false`
+
 如果要显式查询 `platform=""` 的制品，可以这样传：
 
 ```go

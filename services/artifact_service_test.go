@@ -167,10 +167,13 @@ func TestGetArtifactByCommitHashAllowsExplicitEmptyPlatform(t *testing.T) {
 
 func TestCheckExistsByCommitHashAllowsExplicitEmptyPlatform(t *testing.T) {
 	service := newArtifactTestService(t, func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/aiplorer/artifact/batch-exists" {
+		if r.URL.Path != "/aiplorer/artifact/by-commit-hash" {
 			t.Fatalf("unexpected path: %s", r.URL.Path)
 		}
 		payload := decodeBody(t, r)
+		if payload["commitHash"].(string) != "root-hash" {
+			t.Fatalf("unexpected commitHash payload: %#v", payload)
+		}
 		platform, ok := payload["platform"]
 		if !ok {
 			t.Fatalf("expected platform field to be present, payload: %#v", payload)
@@ -178,7 +181,7 @@ func TestCheckExistsByCommitHashAllowsExplicitEmptyPlatform(t *testing.T) {
 		if platform.(string) != "" {
 			t.Fatalf("expected empty platform payload, got %#v", platform)
 		}
-		_, _ = w.Write([]byte(`{"code":0,"data":{"data":[{"commitHash":"root-hash","exists":true,"artifactId":12,"name":"artifact-a"}]}}`))
+		_, _ = w.Write([]byte(`{"code":0,"data":{"id":12,"name":"artifact-a","type":"app","commitHash":"root-hash","platform":"","fullPath":"repo/path/artifact.tar.gz","fileHash":"abc123"}}`))
 	})
 
 	emptyPlatform := ""
@@ -194,11 +197,66 @@ func TestCheckExistsByCommitHashAllowsExplicitEmptyPlatform(t *testing.T) {
 	}
 }
 
+func TestCheckExistsByCommitHashReturnsFalseForVirtualArtifact(t *testing.T) {
+	service := newArtifactTestService(t, func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/aiplorer/artifact/by-commit-hash" {
+			t.Fatalf("unexpected path: %s", r.URL.Path)
+		}
+		_, _ = w.Write([]byte(`{"code":0,"data":{"id":12,"name":"artifact-a","type":"app","commitHash":"root-hash"}}`))
+	})
+
+	exists, err := service.CheckExistsByCommitHash("root-hash", &models.ArtifactLookupOptions{
+		ArtifactType: "app",
+	})
+	if err != nil {
+		t.Fatalf("CheckExistsByCommitHash error: %v", err)
+	}
+	if exists {
+		t.Fatal("expected virtual artifact without fullPath to be treated as non-existent")
+	}
+}
+
+func TestCheckExistsByCommitHashReturnsFalseWithoutFileHash(t *testing.T) {
+	service := newArtifactTestService(t, func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/aiplorer/artifact/by-commit-hash" {
+			t.Fatalf("unexpected path: %s", r.URL.Path)
+		}
+		_, _ = w.Write([]byte(`{"code":0,"data":{"id":12,"name":"artifact-a","type":"app","commitHash":"root-hash","fullPath":"repo/path/artifact.tar.gz"}}`))
+	})
+
+	exists, err := service.CheckExistsByCommitHash("root-hash", &models.ArtifactLookupOptions{
+		ArtifactType: "app",
+	})
+	if err != nil {
+		t.Fatalf("CheckExistsByCommitHash error: %v", err)
+	}
+	if exists {
+		t.Fatal("expected artifact without fileHash to be treated as non-existent")
+	}
+}
+
+func TestCheckExistsByCommitHashReturnsFalseWhenArtifactMissing(t *testing.T) {
+	service := newArtifactTestService(t, func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/aiplorer/artifact/by-commit-hash" {
+			t.Fatalf("unexpected path: %s", r.URL.Path)
+		}
+		_, _ = w.Write([]byte(`{"code":500,"msg":"artifact not found by commit hash: root-hash"}`))
+	})
+
+	exists, err := service.CheckExistsByCommitHash("root-hash", &models.ArtifactLookupOptions{
+		ArtifactType: "app",
+	})
+	if err != nil {
+		t.Fatalf("CheckExistsByCommitHash error: %v", err)
+	}
+	if exists {
+		t.Fatal("expected missing artifact to return false")
+	}
+}
+
 func TestCheckExistsPrepareDownloadAndVersionMetadata(t *testing.T) {
 	service := newArtifactTestService(t, func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
-		case "/aiplorer/artifact/batch-exists":
-			_, _ = w.Write([]byte(`{"code":0,"data":{"data":[{"commitHash":"root-hash","exists":true,"artifactId":12,"name":"artifact-a"}]}}`))
 		case "/aiplorer/artifact/by-commit-hash":
 			_, _ = w.Write([]byte(`{"code":0,"data":{"id":12,"name":"artifact-a","type":"pkg","commitHash":"root-hash","projectName":"proj-a","fileHash":"abc123","fullPath":"repo/path/artifact.zip"}}`))
 		case "/aiplorer/jfrog/token":
