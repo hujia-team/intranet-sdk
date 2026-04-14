@@ -145,7 +145,7 @@ func TestClawSkillResetLocalSkillUploadToken(t *testing.T) {
 
 func TestClawSkillReportPrivateSkillHubEvent(t *testing.T) {
 	service := newClawSkillTestService(t, roundTripperFunc(func(r *http.Request) (*http.Response, error) {
-		if r.URL.String() != "https://upload.example.com/claw/skill/private-hub/event/report" {
+		if r.URL.String() != "https://intranet.minieye.tech/sys-api/claw/skill/private-hub/event/report" {
 			t.Fatalf("unexpected url: %s", r.URL.String())
 		}
 		if got := r.Header.Get("x-sts-uid"); got != "alice" {
@@ -169,7 +169,6 @@ func TestClawSkillReportPrivateSkillHubEvent(t *testing.T) {
 	}))
 
 	result, err := service.ReportPrivateSkillHubEvent(
-		"https://upload.example.com/claw/skill/private-hub/event/report",
 		&models.PrivateSkillHubEventReportRequest{
 			SkillName: "common.skill-hub.publisher",
 			Action:    "install",

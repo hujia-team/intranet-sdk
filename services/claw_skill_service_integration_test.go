@@ -40,7 +40,6 @@ func TestClawSkillReportPrivateSkillHubEventAgainstLocalService(t *testing.T) {
 	clientName := "intranet-sdk-integration"
 
 	reportResult, err := service.ReportPrivateSkillHubEvent(
-		strings.TrimRight(baseURL, "/")+"/claw/skill/private-hub/event/report",
 		&models.PrivateSkillHubEventReportRequest{
 			SkillName:  skillName,
 			Action:     "install",

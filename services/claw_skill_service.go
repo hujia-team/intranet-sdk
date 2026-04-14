@@ -10,10 +10,12 @@ import (
 	"github.com/hujia-team/intranet-sdk/utils"
 )
 
+const privateSkillHubEventReportEndpoint = "/claw/skill/private-hub/event/report"
+
 type ClawSkillService interface {
 	UploadLocalSkill(rawURL string, archiveName string, archive []byte, version string, uploadToken string, headers map[string]string) (*models.LocalSkillUploadResult, error)
 	ResetLocalSkillUploadToken(rawURL string, slug string, headers map[string]string) (*models.LocalSkillTokenResetResult, error)
-	ReportPrivateSkillHubEvent(rawURL string, req *models.PrivateSkillHubEventReportRequest, headers map[string]string) (*models.PrivateSkillHubEventReportResult, error)
+	ReportPrivateSkillHubEvent(req *models.PrivateSkillHubEventReportRequest, headers map[string]string) (*models.PrivateSkillHubEventReportResult, error)
 }
 
 type clawSkillService struct {
@@ -83,8 +85,8 @@ func (s *clawSkillService) ResetLocalSkillUploadToken(rawURL string, slug string
 	return result, nil
 }
 
-func (s *clawSkillService) ReportPrivateSkillHubEvent(rawURL string, req *models.PrivateSkillHubEventReportRequest, headers map[string]string) (*models.PrivateSkillHubEventReportResult, error) {
-	rawResp, err := s.httpClient.PostRawURL(rawURL, req, headers)
+func (s *clawSkillService) ReportPrivateSkillHubEvent(req *models.PrivateSkillHubEventReportRequest, headers map[string]string) (*models.PrivateSkillHubEventReportResult, error) {
+	rawResp, err := s.httpClient.PostRawURL(strings.TrimRight(s.httpClient.BaseURL(), "/")+privateSkillHubEventReportEndpoint, req, headers)
 	result := &models.PrivateSkillHubEventReportResult{}
 	if rawResp != nil {
 		result.StatusCode = rawResp.StatusCode

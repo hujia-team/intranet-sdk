@@ -61,6 +61,14 @@ func (c *HTTPClient) GetAuthToken() string {
 	return c.authToken
 }
 
+// BaseURL returns the configured API base URL.
+func (c *HTTPClient) BaseURL() string {
+	if c == nil || c.config == nil {
+		return ""
+	}
+	return c.config.BaseURL
+}
+
 // Config holds the configuration for the HTTP client.
 type Config struct {
 	BaseURL         string

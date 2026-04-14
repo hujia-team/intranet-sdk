@@ -99,7 +99,6 @@ success := true
 clientName := "ai-forge"
 
 result, err := sdk.ClawSkill.ReportPrivateSkillHubEvent(
-	"https://intranet.minieye.tech/sys-api/claw/skill/private-hub/event/report",
 	&models.PrivateSkillHubEventReportRequest{
 		SkillName:  skillName,
 		Action:     action,
