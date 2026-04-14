@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/hujia-team/intranet-sdk/client"
+	"github.com/hujia-team/intranet-sdk/models"
 )
 
 func newClawSkillTestService(t *testing.T, transport http.RoundTripper) *clawSkillService {
@@ -138,6 +139,51 @@ func TestClawSkillResetLocalSkillUploadToken(t *testing.T) {
 		t.Fatalf("unexpected status code: %d", result.StatusCode)
 	}
 	if result.Parsed == nil || result.Parsed.Data.UploadToken != "claw_skill_reset" {
+		t.Fatalf("unexpected parsed result: %#v", result)
+	}
+}
+
+func TestClawSkillReportPrivateSkillHubEvent(t *testing.T) {
+	service := newClawSkillTestService(t, roundTripperFunc(func(r *http.Request) (*http.Response, error) {
+		if r.URL.String() != "https://upload.example.com/claw/skill/private-hub/event/report" {
+			t.Fatalf("unexpected url: %s", r.URL.String())
+		}
+		if got := r.Header.Get("x-sts-uid"); got != "alice" {
+			t.Fatalf("unexpected sts uid: %s", got)
+		}
+		body, err := io.ReadAll(r.Body)
+		if err != nil {
+			t.Fatalf("read body: %v", err)
+		}
+		if !strings.Contains(string(body), `"skillName":"common.skill-hub.publisher"`) {
+			t.Fatalf("unexpected body: %s", string(body))
+		}
+		if !strings.Contains(string(body), `"action":"install"`) {
+			t.Fatalf("unexpected body: %s", string(body))
+		}
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Header:     make(http.Header),
+			Body:       io.NopCloser(strings.NewReader(`{"code":0,"msg":"success"}`)),
+		}, nil
+	}))
+
+	result, err := service.ReportPrivateSkillHubEvent(
+		"https://upload.example.com/claw/skill/private-hub/event/report",
+		&models.PrivateSkillHubEventReportRequest{
+			SkillName: "common.skill-hub.publisher",
+			Action:    "install",
+			Success:   true,
+		},
+		nil,
+	)
+	if err != nil {
+		t.Fatalf("ReportPrivateSkillHubEvent error: %v", err)
+	}
+	if result.StatusCode != http.StatusOK {
+		t.Fatalf("unexpected status code: %d", result.StatusCode)
+	}
+	if result.Parsed == nil || result.Parsed.Msg != "success" {
 		t.Fatalf("unexpected parsed result: %#v", result)
 	}
 }

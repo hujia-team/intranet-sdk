@@ -56,3 +56,23 @@ type LocalSkillTokenResetResponseData struct {
 	Skill       LocalSkillInfo `json:"skill"`
 	UploadToken string         `json:"uploadToken"`
 }
+
+type PrivateSkillHubEventReportRequest struct {
+	SkillName     string  `json:"skillName"`
+	Version       *string `json:"version,omitempty"`
+	Action        string  `json:"action"`
+	Success       bool    `json:"success"`
+	Operator      *string `json:"operator,omitempty"`
+	ClientName    *string `json:"clientName,omitempty"`
+	ClientVersion *string `json:"clientVersion,omitempty"`
+	RequestId     *string `json:"requestId,omitempty"`
+	ErrorMessage  *string `json:"errorMessage,omitempty"`
+	OccurredAt    *int64  `json:"occurredAt,omitempty"`
+}
+
+type PrivateSkillHubEventReportResult struct {
+	StatusCode int          `json:"statusCode"`
+	BodyText   string       `json:"bodyText,omitempty"`
+	Parsed     *BaseMsgResp `json:"parsed,omitempty"`
+	ParseError string       `json:"parseError,omitempty"`
+}

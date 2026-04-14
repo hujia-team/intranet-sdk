@@ -8,11 +8,13 @@
 
 - `sdk.ClawSkill.UploadLocalSkill`
 - `sdk.ClawSkill.ResetLocalSkillUploadToken`
+- `sdk.ClawSkill.ReportPrivateSkillHubEvent`
 
 这两个接口对应服务端：
 
 - `POST /claw/skill/local/upload`
 - `POST /claw/skill/local/token/reset`
+- `POST /claw/skill/private-hub/event/report`
 
 ## 初始化
 
@@ -87,6 +89,45 @@ if result.Parsed != nil {
 	println(result.Parsed.Data.UploadToken)
 }
 ```
+
+## 上报 Private Skill Hub 事件
+
+```go
+skillName := "common.skill-hub.publisher"
+action := "install"
+success := true
+clientName := "ai-forge"
+
+result, err := sdk.ClawSkill.ReportPrivateSkillHubEvent(
+	"https://intranet.minieye.tech/sys-api/claw/skill/private-hub/event/report",
+	&models.PrivateSkillHubEventReportRequest{
+		SkillName:  skillName,
+		Action:     action,
+		Success:    success,
+		ClientName: &clientName,
+	},
+	nil,
+)
+if err != nil {
+	panic(err)
+}
+
+if result.Parsed != nil {
+	println(result.Parsed.Msg)
+}
+```
+
+适用场景：
+
+- `ai-forge` 下载或安装 `skill-hub` skill 后做 best-effort 上报
+- 内部工具记录 skill 使用统计
+
+参数说明：
+
+- `SkillName`：skill 名称
+- `Action`：`download` 或 `install`
+- `Success`：是否成功
+- 其余字段均为可选补充信息，如版本、操作人、客户端版本、错误摘要
 
 ## 服务端去重语义
 

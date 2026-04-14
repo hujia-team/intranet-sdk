@@ -13,6 +13,7 @@ import (
 type ClawSkillService interface {
 	UploadLocalSkill(rawURL string, archiveName string, archive []byte, version string, uploadToken string, headers map[string]string) (*models.LocalSkillUploadResult, error)
 	ResetLocalSkillUploadToken(rawURL string, slug string, headers map[string]string) (*models.LocalSkillTokenResetResult, error)
+	ReportPrivateSkillHubEvent(rawURL string, req *models.PrivateSkillHubEventReportRequest, headers map[string]string) (*models.PrivateSkillHubEventReportResult, error)
 }
 
 type clawSkillService struct {
@@ -78,6 +79,27 @@ func (s *clawSkillService) ResetLocalSkillUploadToken(rawURL string, slug string
 	}
 	if err != nil {
 		return result, utils.NewAPIError("failed to reset local skill upload token", err)
+	}
+	return result, nil
+}
+
+func (s *clawSkillService) ReportPrivateSkillHubEvent(rawURL string, req *models.PrivateSkillHubEventReportRequest, headers map[string]string) (*models.PrivateSkillHubEventReportResult, error) {
+	rawResp, err := s.httpClient.PostRawURL(rawURL, req, headers)
+	result := &models.PrivateSkillHubEventReportResult{}
+	if rawResp != nil {
+		result.StatusCode = rawResp.StatusCode
+		result.BodyText = strings.TrimSpace(string(rawResp.Body))
+		if len(rawResp.Body) > 0 {
+			var parsed models.BaseMsgResp
+			if parseErr := json.Unmarshal(rawResp.Body, &parsed); parseErr == nil {
+				result.Parsed = &parsed
+			} else {
+				result.ParseError = parseErr.Error()
+			}
+		}
+	}
+	if err != nil {
+		return result, utils.NewAPIError("failed to report private skill hub event", err)
 	}
 	return result, nil
 }
