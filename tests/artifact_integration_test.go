@@ -218,9 +218,9 @@ func TestArtifactReadFlow(t *testing.T) {
 		t.Logf("CheckExistsByName: %v", existsByName)
 
 		prepareDir := t.TempDir()
-		plan, err := client.Artifact.PrepareDownloadByCommitHash(*artifact.CommitHash, lookup, prepareDir)
+		plan, err := client.Artifact.PrepareDownloadByArtifactID(*artifact.ID, prepareDir)
 		if err != nil {
-			t.Fatalf("准备下载计划失败: %v", err)
+			t.Fatalf("按 artifact ID 准备下载计划失败: %v", err)
 		}
 		if plan == nil || plan.Artifact == nil || plan.DownloadURL == nil || plan.Token == nil {
 			t.Fatalf("下载计划响应无效: %#v", plan)
@@ -234,9 +234,9 @@ func TestArtifactReadFlow(t *testing.T) {
 		}
 
 		if os.Getenv("INTRANET_ARTIFACT_DOWNLOAD") == "true" {
-			downloadedPlan, err := client.Artifact.DownloadByCommitHash(*artifact.CommitHash, lookup, prepareDir)
+			downloadedPlan, err := client.Artifact.DownloadByArtifactID(*artifact.ID, prepareDir)
 			if err != nil {
-				t.Fatalf("按 commit hash 下载制品失败: %v", err)
+				t.Fatalf("按 artifact ID 下载制品失败: %v", err)
 			}
 			if downloadedPlan.SkippedExisting {
 				t.Fatal("首次下载不应命中 skip existing")
@@ -249,9 +249,9 @@ func TestArtifactReadFlow(t *testing.T) {
 
 			time.Sleep(1100 * time.Millisecond)
 
-			downloadedPlanAgain, err := client.Artifact.DownloadByCommitHash(*artifact.CommitHash, lookup, prepareDir)
+			downloadedPlanAgain, err := client.Artifact.DownloadByArtifactID(*artifact.ID, prepareDir)
 			if err != nil {
-				t.Fatalf("重复下载制品失败: %v", err)
+				t.Fatalf("重复按 artifact ID 下载制品失败: %v", err)
 			}
 			if !downloadedPlanAgain.SkippedExisting {
 				t.Fatalf("重复下载未命中 skip existing: %#v", downloadedPlanAgain)

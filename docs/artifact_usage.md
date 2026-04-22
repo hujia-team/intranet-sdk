@@ -12,6 +12,8 @@
 - `sdk.Artifact.GetArtifactByCommitHash`
 - `sdk.Artifact.CheckExistsByCommitHash`
 - `sdk.Artifact.CheckExistsByName`
+- `sdk.Artifact.PrepareDownloadByArtifactID`
+- `sdk.Artifact.DownloadByArtifactID`
 - `sdk.Artifact.PrepareDownloadByCommitHash`
 - `sdk.Artifact.DownloadByCommitHash`
 - `sdk.Artifact.DownloadByName`
@@ -123,6 +125,44 @@ exists, err := sdk.Artifact.CheckExistsByName(
 ```
 
 ## 下载计划与下载
+
+推荐顺序：
+
+- 已经拿到制品 `id` 时，优先使用 `PrepareDownloadByArtifactID` / `DownloadByArtifactID`
+- 只有 `commit hash` 时，再使用 `PrepareDownloadByCommitHash` / `DownloadByCommitHash`
+- `DownloadByName` 仅适合名称在当前筛选条件下唯一的场景
+
+## 按 artifact ID 下载
+
+这是 SDK 当前最稳妥的下载方式，因为不依赖名称或 `commit_hash` 的唯一性。
+
+```go
+plan, err := sdk.Artifact.DownloadByArtifactID(
+	artifactID,
+	"./downloads",
+)
+if err != nil {
+	return err
+}
+
+fmt.Printf("downloaded to: %s\n", plan.TargetPath)
+```
+
+如果想先看下载计划，再决定是否真正下载：
+
+```go
+plan, err := sdk.Artifact.PrepareDownloadByArtifactID(
+	artifactID,
+	"./downloads",
+)
+if err != nil {
+	return err
+}
+
+fmt.Printf("target path: %s\n", plan.TargetPath)
+fmt.Printf("jfrog file path: %s\n", plan.DownloadURL.FilePath)
+fmt.Printf("checksum: %s\n", plan.Checksum)
+```
 
 推荐先准备下载计划，再决定是否执行真正下载。
 

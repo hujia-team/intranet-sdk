@@ -257,6 +257,12 @@ func TestCheckExistsByCommitHashReturnsFalseWhenArtifactMissing(t *testing.T) {
 func TestCheckExistsPrepareDownloadAndVersionMetadata(t *testing.T) {
 	service := newArtifactTestService(t, func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
+		case "/aiplorer/artifact":
+			payload := decodeBody(t, r)
+			if payload["id"].(float64) != 12 {
+				t.Fatalf("unexpected artifact id payload: %#v", payload)
+			}
+			_, _ = w.Write([]byte(`{"code":0,"data":{"id":12,"name":"artifact-a","type":"pkg","commitHash":"root-hash","projectName":"proj-a","fileHash":"abc123","fullPath":"repo/path/artifact.zip"}}`))
 		case "/aiplorer/artifact/by-commit-hash":
 			_, _ = w.Write([]byte(`{"code":0,"data":{"id":12,"name":"artifact-a","type":"pkg","commitHash":"root-hash","projectName":"proj-a","fileHash":"abc123","fullPath":"repo/path/artifact.zip"}}`))
 		case "/aiplorer/jfrog/token":
@@ -289,12 +295,28 @@ func TestCheckExistsPrepareDownloadAndVersionMetadata(t *testing.T) {
 		t.Fatalf("unexpected target path: %#v", plan)
 	}
 
+	plan, err = service.PrepareDownloadByArtifactID(12, "downloads/")
+	if err != nil {
+		t.Fatalf("PrepareDownloadByArtifactID error: %v", err)
+	}
+	if plan.TargetPath != "downloads/artifact.zip" {
+		t.Fatalf("unexpected artifact-id target path: %#v", plan)
+	}
+
 	plan, err = service.DownloadByCommitHash("root-hash", &models.ArtifactLookupOptions{ArtifactType: "pkg"}, "downloads/")
 	if err != nil {
 		t.Fatalf("DownloadByCommitHash error: %v", err)
 	}
 	if plan.DownloadURL == nil || plan.DownloadURL.FileName != "artifact.zip" {
 		t.Fatalf("unexpected download plan: %#v", plan)
+	}
+
+	plan, err = service.DownloadByArtifactID(12, "downloads/")
+	if err != nil {
+		t.Fatalf("DownloadByArtifactID error: %v", err)
+	}
+	if plan.DownloadURL == nil || plan.DownloadURL.FileName != "artifact.zip" {
+		t.Fatalf("unexpected artifact-id download plan: %#v", plan)
 	}
 
 	metadata, err := service.GetVersionMetadataByCommitHash("root-hash", &models.ArtifactLookupOptions{ArtifactType: "pkg"})
@@ -412,5 +434,44 @@ func TestGetJfrogTokenAndDownloadURL(t *testing.T) {
 	}
 	if download.FileName != "artifact.zip" {
 		t.Fatalf("unexpected download: %#v", download)
+	}
+}
+
+func TestDownloadByNameUsesResolvedArtifactID(t *testing.T) {
+	service := newArtifactTestService(t, func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/aiplorer/artifact/list":
+			_, _ = w.Write([]byte(`{"code":0,"data":{"total":1,"data":[{"id":12,"name":"artifact-a"}]}}`))
+		case "/aiplorer/artifact":
+			payload := decodeBody(t, r)
+			if payload["id"].(float64) != 12 {
+				t.Fatalf("unexpected artifact id payload: %#v", payload)
+			}
+			_, _ = w.Write([]byte(`{"code":0,"data":{"id":12,"name":"artifact-a","projectName":"proj-a","fileHash":"abc123","fullPath":"repo/path/artifact.zip"}}`))
+		case "/aiplorer/jfrog/token":
+			_, _ = w.Write([]byte(`{"code":0,"data":{"token_id":"tid","access_token":"token","expires_in":3600,"token_type":"Bearer","scope":"scope","url":"https://jfrog.example.com"}}`))
+		case "/aiplorer/artifact/download-url":
+			payload := decodeBody(t, r)
+			if payload["artifactId"].(float64) != 12 {
+				t.Fatalf("unexpected download payload: %#v", payload)
+			}
+			_, _ = w.Write([]byte(`{"code":0,"data":{"downloadUrl":"https://jfrog.example.com/file","expireTime":"2026-03-18 12:00:00","fileName":"artifact.zip","filePath":"repo/path/artifact.zip"}}`))
+		default:
+			t.Fatalf("unexpected path: %s", r.URL.Path)
+		}
+	})
+	service.downloadArtifact = func(token *models.JfrogTokenInfo, filePath, targetDir string) error {
+		if token.AccessToken != "token" || filePath != "repo/path/artifact.zip" {
+			t.Fatalf("unexpected download args: %#v %s %s", token, filePath, targetDir)
+		}
+		return nil
+	}
+
+	plan, err := service.DownloadByName("artifact-a", nil, "downloads/")
+	if err != nil {
+		t.Fatalf("DownloadByName error: %v", err)
+	}
+	if plan.DownloadURL == nil || plan.DownloadURL.FileName != "artifact.zip" {
+		t.Fatalf("unexpected download plan: %#v", plan)
 	}
 }
