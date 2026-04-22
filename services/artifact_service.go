@@ -35,7 +35,9 @@ type ArtifactService interface {
 	GetArtifactByName(name string, lookup *models.ArtifactLookupOptions) (*models.ArtifactInfo, error)
 	CheckExistsByCommitHash(commitHash string, lookup *models.ArtifactLookupOptions) (bool, error)
 	CheckExistsByName(name string, lookup *models.ArtifactLookupOptions) (bool, error)
+	PrepareDownloadByArtifactID(artifactID uint64, destination string) (*models.ArtifactDownloadPlan, error)
 	PrepareDownloadByCommitHash(commitHash string, lookup *models.ArtifactLookupOptions, destination string) (*models.ArtifactDownloadPlan, error)
+	DownloadByArtifactID(artifactID uint64, destination string) (*models.ArtifactDownloadPlan, error)
 	DownloadByCommitHash(commitHash string, lookup *models.ArtifactLookupOptions, destination string) (*models.ArtifactDownloadPlan, error)
 	DownloadByName(name string, lookup *models.ArtifactLookupOptions, destination string) (*models.ArtifactDownloadPlan, error)
 	GetVersionMetadataByCommitHash(commitHash string, lookup *models.ArtifactLookupOptions) (*models.ArtifactVersionMetadataInfo, error)
@@ -214,39 +216,28 @@ func (s *artifactService) CheckExistsByName(name string, lookup *models.Artifact
 	return false, err
 }
 
+func (s *artifactService) PrepareDownloadByArtifactID(artifactID uint64, destination string) (*models.ArtifactDownloadPlan, error) {
+	artifact, err := s.GetArtifactByID(artifactID)
+	if err != nil {
+		return nil, err
+	}
+	return s.prepareDownload(artifact, destination)
+}
+
 func (s *artifactService) PrepareDownloadByCommitHash(commitHash string, lookup *models.ArtifactLookupOptions, destination string) (*models.ArtifactDownloadPlan, error) {
 	artifact, err := s.GetArtifactByCommitHash(commitHash, lookup)
 	if err != nil {
 		return nil, err
 	}
-	if artifact.ID == nil {
-		return nil, utils.NewAPIError(fmt.Sprintf("artifact id missing for commit hash: %s", commitHash), nil)
-	}
-	if artifact.ProjectName == nil || *artifact.ProjectName == "" {
-		return nil, utils.NewAPIError(fmt.Sprintf("artifact project_name is empty for commit hash: %s", commitHash), nil)
-	}
+	return s.prepareDownload(artifact, destination)
+}
 
-	token, err := s.GetJfrogToken(*artifact.ProjectName)
+func (s *artifactService) DownloadByArtifactID(artifactID uint64, destination string) (*models.ArtifactDownloadPlan, error) {
+	plan, err := s.PrepareDownloadByArtifactID(artifactID, destination)
 	if err != nil {
 		return nil, err
 	}
-	downloadURL, err := s.GetArtifactDownloadURL(*artifact.ID, "artifact")
-	if err != nil {
-		return nil, err
-	}
-
-	targetPath := resolveDownloadTarget(destination, downloadURL.FileName)
-	checksum := ""
-	if artifact.FileHash != nil {
-		checksum = *artifact.FileHash
-	}
-	return &models.ArtifactDownloadPlan{
-		Artifact:    artifact,
-		Token:       token,
-		DownloadURL: downloadURL,
-		TargetPath:  targetPath,
-		Checksum:    checksum,
-	}, nil
+	return s.executeDownloadPlan(plan)
 }
 
 func (s *artifactService) DownloadByCommitHash(commitHash string, lookup *models.ArtifactLookupOptions, destination string) (*models.ArtifactDownloadPlan, error) {
@@ -254,6 +245,10 @@ func (s *artifactService) DownloadByCommitHash(commitHash string, lookup *models
 	if err != nil {
 		return nil, err
 	}
+	return s.executeDownloadPlan(plan)
+}
+
+func (s *artifactService) executeDownloadPlan(plan *models.ArtifactDownloadPlan) (*models.ArtifactDownloadPlan, error) {
 	if plan.Token == nil || plan.DownloadURL == nil {
 		return nil, utils.NewAPIError("download plan is incomplete", nil)
 	}
@@ -280,10 +275,44 @@ func (s *artifactService) DownloadByName(name string, lookup *models.ArtifactLoo
 	if err != nil {
 		return nil, err
 	}
-	if artifact.CommitHash == nil || *artifact.CommitHash == "" {
-		return nil, utils.NewAPIError(fmt.Sprintf("artifact commit hash is empty for artifact: %s", name), nil)
+	if artifact.ID == nil {
+		return nil, utils.NewAPIError(fmt.Sprintf("artifact id missing for artifact: %s", name), nil)
 	}
-	return s.DownloadByCommitHash(*artifact.CommitHash, lookup, destination)
+	return s.DownloadByArtifactID(*artifact.ID, destination)
+}
+
+func (s *artifactService) prepareDownload(artifact *models.ArtifactInfo, destination string) (*models.ArtifactDownloadPlan, error) {
+	if artifact == nil {
+		return nil, utils.NewAPIError("artifact is nil", nil)
+	}
+	if artifact.ID == nil {
+		return nil, utils.NewAPIError("artifact id is empty", nil)
+	}
+	if artifact.ProjectName == nil || *artifact.ProjectName == "" {
+		return nil, utils.NewAPIError(fmt.Sprintf("artifact project_name is empty for artifact id: %d", *artifact.ID), nil)
+	}
+
+	token, err := s.GetJfrogToken(*artifact.ProjectName)
+	if err != nil {
+		return nil, err
+	}
+	downloadURL, err := s.GetArtifactDownloadURL(*artifact.ID, "artifact")
+	if err != nil {
+		return nil, err
+	}
+
+	targetPath := resolveDownloadTarget(destination, downloadURL.FileName)
+	checksum := ""
+	if artifact.FileHash != nil {
+		checksum = *artifact.FileHash
+	}
+	return &models.ArtifactDownloadPlan{
+		Artifact:    artifact,
+		Token:       token,
+		DownloadURL: downloadURL,
+		TargetPath:  targetPath,
+		Checksum:    checksum,
+	}, nil
 }
 
 func (s *artifactService) GetVersionMetadataByCommitHash(commitHash string, lookup *models.ArtifactLookupOptions) (*models.ArtifactVersionMetadataInfo, error) {
