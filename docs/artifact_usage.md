@@ -19,12 +19,17 @@
 - `sdk.Artifact.DownloadByName`
 - `sdk.Artifact.GetVersionMetadataByCommitHash`
 - `sdk.Artifact.GetChildArtifactHashesByCommitHash`
+- `sdk.Artifact.GetArtifactChangelog`
+- `sdk.Artifact.GetArtifactChangelogFiles`
 - `sdk.Artifact.GetArtifactTagSchema`
 - `sdk.Artifact.ParseArtifactTags`
 - `sdk.Artifact.GetParsedArtifactTags`
 - `sdk.Artifact.GetJfrogToken`
 - `sdk.Artifact.GetArtifactDownloadURL`
 - `sdk.Artifact.GetArtifactDownloadURLByName`
+
+这份文档不展开每个返回字段。日常开发建议直接看 `sdk.Artifact`
+接口、`models` 类型定义和测试用例，再让 AI 基于签名生成业务代码。
 
 ## 按名称获取制品详情
 

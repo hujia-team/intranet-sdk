@@ -43,6 +43,9 @@ if err != nil {
 - `sdk.Artifact`
 - `sdk.ClawSkill`
 
+使用制品查询、下载、标签或 changelog 能力时，建议先看
+`sdk.Artifact` 接口和 `models` 类型定义，再让 AI 按签名生成脚本。
+
 ## 最小示例
 
 ```go

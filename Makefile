@@ -33,12 +33,12 @@ help:
 # 运行所有测试
 test:
 	@echo "运行所有测试..."
-	@GOWORK=off go test -v $$(go list ./... | grep -v /examples)
+	@GOWORK=off go test -v $$(GOWORK=off go list ./... | grep -v /examples)
 
 # 运行单元测试（排除 tests 目录）
 test-unit:
 	@echo "运行单元测试..."
-	@GOWORK=off go test -v $$(go list ./... | grep -v /tests)
+	@GOWORK=off go test -v $$(GOWORK=off go list ./... | grep -v /tests | grep -v /examples)
 
 # 运行集成测试
 test-integration:
