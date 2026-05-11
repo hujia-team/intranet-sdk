@@ -404,6 +404,70 @@ func TestGetArtifactTagSchemaJSONAndUpdateTags(t *testing.T) {
 	}
 }
 
+func TestGetArtifactChangelogAndFiles(t *testing.T) {
+	service := newArtifactTestService(t, func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/aiplorer/artifact/commit-diff-v2":
+			payload := decodeBody(t, r)
+			if payload["artifactIdA"].(float64) != 10 || payload["artifactIdB"].(float64) != 12 {
+				t.Fatalf("unexpected changelog payload: %#v", payload)
+			}
+			if payload["page"].(float64) != 2 || payload["pageSize"].(float64) != 50 {
+				t.Fatalf("unexpected pagination payload: %#v", payload)
+			}
+			if payload["repositoryId"].(float64) != 7 {
+				t.Fatalf("unexpected repository payload: %#v", payload)
+			}
+			_, _ = w.Write([]byte(`{"code":0,"data":{"olderArtifactId":10,"newerArtifactId":12,"changedRepoCount":1,"unavailableRepoCount":1,"unavailableRepos":[{"repositoryId":9,"reason":"missing compare cache"}],"total":1,"data":[{"id":33,"gitlabProjectId":"100","repositoryId":7,"repositoryName":"repo-a","commitId":"abcdef","commitShortId":"abcdef0","title":"fix bug","authorName":"Alice","committedAt":1770000000,"webUrl":"https://git.example.com/commit/abcdef"}]}}`))
+		case "/aiplorer/artifact/commit-diff-files":
+			payload := decodeBody(t, r)
+			if payload["gitCommitId"].(float64) != 33 {
+				t.Fatalf("unexpected files payload: %#v", payload)
+			}
+			if payload["page"].(float64) != 1 || payload["pageSize"].(float64) != 20 {
+				t.Fatalf("unexpected files pagination payload: %#v", payload)
+			}
+			_, _ = w.Write([]byte(`{"code":0,"data":{"total":1,"data":[{"id":44,"gitCommitId":33,"oldPath":"old.go","newPath":"new.go","newFile":false,"renamedFile":true,"deletedFile":false}]}}`))
+		default:
+			t.Fatalf("unexpected path: %s", r.URL.Path)
+		}
+	})
+
+	page, pageSize, repositoryID := uint64(2), uint64(50), uint64(7)
+	changelog, err := service.GetArtifactChangelog(10, 12, &models.ArtifactChangelogOptions{
+		Page:         &page,
+		PageSize:     &pageSize,
+		RepositoryID: &repositoryID,
+	})
+	if err != nil {
+		t.Fatalf("GetArtifactChangelog error: %v", err)
+	}
+	if changelog.Total != 1 || len(changelog.Data) != 1 {
+		t.Fatalf("unexpected changelog: %#v", changelog)
+	}
+	if changelog.Data[0].CommitID == nil || *changelog.Data[0].CommitID != "abcdef" {
+		t.Fatalf("unexpected changelog commit: %#v", changelog.Data[0])
+	}
+	if changelog.UnavailableRepos[0].Reason == nil || *changelog.UnavailableRepos[0].Reason != "missing compare cache" {
+		t.Fatalf("unexpected unavailable repos: %#v", changelog.UnavailableRepos)
+	}
+
+	filesPage, filesPageSize := uint64(1), uint64(20)
+	files, err := service.GetArtifactChangelogFiles(33, &models.ArtifactChangelogFilesOptions{
+		Page:     &filesPage,
+		PageSize: &filesPageSize,
+	})
+	if err != nil {
+		t.Fatalf("GetArtifactChangelogFiles error: %v", err)
+	}
+	if files.Total != 1 || len(files.Data) != 1 {
+		t.Fatalf("unexpected files: %#v", files)
+	}
+	if files.Data[0].NewPath == nil || *files.Data[0].NewPath != "new.go" {
+		t.Fatalf("unexpected file info: %#v", files.Data[0])
+	}
+}
+
 func TestGetJfrogTokenAndDownloadURL(t *testing.T) {
 	service := newArtifactTestService(t, func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {

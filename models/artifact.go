@@ -222,6 +222,81 @@ type ArtifactCommitDiffInfo struct {
 	RepoDiffs        []RepoDiff `json:"repoDiffs"`
 }
 
+// ArtifactChangelogOptions configures changelog commit list pagination.
+type ArtifactChangelogOptions struct {
+	Page         *uint64
+	PageSize     *uint64
+	RepositoryID *uint64
+}
+
+// ArtifactChangelogFilesOptions configures changelog file list pagination.
+type ArtifactChangelogFilesOptions struct {
+	Page     *uint64
+	PageSize *uint64
+}
+
+// ArtifactCommitDiffUnavailableRepo describes a repository that cannot produce changelog data.
+type ArtifactCommitDiffUnavailableRepo struct {
+	RepositoryID    *uint64     `json:"repositoryId,omitempty"`
+	GitlabProjectID *string     `json:"gitlabProjectId,omitempty"`
+	RepositoryName  *string     `json:"repositoryName,omitempty"`
+	RepositoryPath  *string     `json:"repositoryPath,omitempty"`
+	OlderCommit     *CommitInfo `json:"olderCommit,omitempty"`
+	NewerCommit     *CommitInfo `json:"newerCommit,omitempty"`
+	Reason          *string     `json:"reason,omitempty"`
+}
+
+// ArtifactChangelogCommitInfo describes one commit in an artifact changelog.
+type ArtifactChangelogCommitInfo struct {
+	ID              *uint64 `json:"id,omitempty"`
+	GitlabProjectID *string `json:"gitlabProjectId,omitempty"`
+	RepositoryID    *uint64 `json:"repositoryId,omitempty"`
+	RepositoryName  *string `json:"repositoryName,omitempty"`
+	RepositoryPath  *string `json:"repositoryPath,omitempty"`
+	CommitID        *string `json:"commitId,omitempty"`
+	CommitShortID   *string `json:"commitShortId,omitempty"`
+	Title           *string `json:"title,omitempty"`
+	Message         *string `json:"message,omitempty"`
+	AuthorName      *string `json:"authorName,omitempty"`
+	AuthorEmail     *string `json:"authorEmail,omitempty"`
+	CommittedAt     *int64  `json:"committedAt,omitempty"`
+	WebURL          *string `json:"webUrl,omitempty"`
+}
+
+// ArtifactChangelogInfo contains paged changelog commits between two artifacts.
+type ArtifactChangelogInfo struct {
+	OlderArtifactID              *uint64                             `json:"olderArtifactId,omitempty"`
+	OlderArtifactName            *string                             `json:"olderArtifactName,omitempty"`
+	OlderArtifactSemanticVersion *string                             `json:"olderArtifactSemanticVersion,omitempty"`
+	NewerArtifactID              *uint64                             `json:"newerArtifactId,omitempty"`
+	NewerArtifactName            *string                             `json:"newerArtifactName,omitempty"`
+	NewerArtifactSemanticVersion *string                             `json:"newerArtifactSemanticVersion,omitempty"`
+	ChangedRepoCount             uint64                              `json:"changedRepoCount"`
+	UnavailableRepoCount         uint64                              `json:"unavailableRepoCount"`
+	UnavailableRepos             []ArtifactCommitDiffUnavailableRepo `json:"unavailableRepos,omitempty"`
+	Total                        uint64                              `json:"total"`
+	Data                         []ArtifactChangelogCommitInfo       `json:"data"`
+}
+
+// ArtifactChangelogFileInfo describes one file touched by a changelog commit.
+type ArtifactChangelogFileInfo struct {
+	ID          *uint64 `json:"id,omitempty"`
+	GitCommitID *uint64 `json:"gitCommitId,omitempty"`
+	OldPath     *string `json:"oldPath,omitempty"`
+	NewPath     *string `json:"newPath,omitempty"`
+	AMode       *string `json:"aMode,omitempty"`
+	BMode       *string `json:"bMode,omitempty"`
+	NewFile     *bool   `json:"newFile,omitempty"`
+	RenamedFile *bool   `json:"renamedFile,omitempty"`
+	DeletedFile *bool   `json:"deletedFile,omitempty"`
+}
+
+// ArtifactChangelogFilesInfo contains paged files for one changelog commit.
+type ArtifactChangelogFilesInfo struct {
+	Total uint64                      `json:"total"`
+	Data  []ArtifactChangelogFileInfo `json:"data"`
+}
+
 // IDsReq is a numeric ID list request.
 type IDsReq struct {
 	IDs []uint64 `json:"ids"`
@@ -236,6 +311,22 @@ type IDReq struct {
 type ArtifactCommitDiffReq struct {
 	ArtifactIDA uint64 `json:"artifactIdA"`
 	ArtifactIDB uint64 `json:"artifactIdB"`
+}
+
+// ArtifactChangelogReq requests paged changelog commits between two artifacts.
+type ArtifactChangelogReq struct {
+	ArtifactIDA  uint64  `json:"artifactIdA"`
+	ArtifactIDB  uint64  `json:"artifactIdB"`
+	Page         *uint64 `json:"page,omitempty"`
+	PageSize     *uint64 `json:"pageSize,omitempty"`
+	RepositoryID *uint64 `json:"repositoryId,omitempty"`
+}
+
+// ArtifactChangelogFilesReq requests files for a changelog commit.
+type ArtifactChangelogFilesReq struct {
+	GitCommitID uint64  `json:"gitCommitId"`
+	Page        *uint64 `json:"page,omitempty"`
+	PageSize    *uint64 `json:"pageSize,omitempty"`
 }
 
 // ArtifactTagSchemaReq queries a tag schema by version.

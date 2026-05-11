@@ -43,6 +43,8 @@ type ArtifactService interface {
 	GetVersionMetadataByCommitHash(commitHash string, lookup *models.ArtifactLookupOptions) (*models.ArtifactVersionMetadataInfo, error)
 	GetChildArtifactHashesByCommitHash(commitHash string, lookup *models.ArtifactLookupOptions) (*models.ArtifactChildHashesInfo, error)
 	GetArtifactCommitDiff(artifactIDA, artifactIDB uint64) (*models.ArtifactCommitDiffInfo, error)
+	GetArtifactChangelog(artifactIDA, artifactIDB uint64, options *models.ArtifactChangelogOptions) (*models.ArtifactChangelogInfo, error)
+	GetArtifactChangelogFiles(gitCommitID uint64, options *models.ArtifactChangelogFilesOptions) (*models.ArtifactChangelogFilesInfo, error)
 	GetArtifactTagSchema(version string) (*models.ArtifactTagSchemaInfo, error)
 	GetArtifactTagSchemaJSON(version string) (map[string]any, error)
 	GetJfrogToken(projectName string) (*models.JfrogTokenInfo, error)
@@ -375,6 +377,50 @@ func (s *artifactService) GetArtifactCommitDiff(artifactIDA, artifactIDB uint64)
 		ArtifactIDB: artifactIDB,
 	}, &response); err != nil {
 		return nil, utils.NewAPIError("failed to get artifact commit diff", err)
+	}
+	if response.Code != 0 {
+		return nil, utils.NewAPIError(response.Msg, nil)
+	}
+	return &response.Data, nil
+}
+
+func (s *artifactService) GetArtifactChangelog(artifactIDA, artifactIDB uint64, options *models.ArtifactChangelogOptions) (*models.ArtifactChangelogInfo, error) {
+	var response struct {
+		Code int                          `json:"code"`
+		Msg  string                       `json:"msg"`
+		Data models.ArtifactChangelogInfo `json:"data"`
+	}
+	req := &models.ArtifactChangelogReq{
+		ArtifactIDA: artifactIDA,
+		ArtifactIDB: artifactIDB,
+	}
+	if options != nil {
+		req.Page = options.Page
+		req.PageSize = options.PageSize
+		req.RepositoryID = options.RepositoryID
+	}
+	if err := s.httpClient.Post("/aiplorer/artifact/commit-diff-v2", req, &response); err != nil {
+		return nil, utils.NewAPIError("failed to get artifact changelog", err)
+	}
+	if response.Code != 0 {
+		return nil, utils.NewAPIError(response.Msg, nil)
+	}
+	return &response.Data, nil
+}
+
+func (s *artifactService) GetArtifactChangelogFiles(gitCommitID uint64, options *models.ArtifactChangelogFilesOptions) (*models.ArtifactChangelogFilesInfo, error) {
+	var response struct {
+		Code int                               `json:"code"`
+		Msg  string                            `json:"msg"`
+		Data models.ArtifactChangelogFilesInfo `json:"data"`
+	}
+	req := &models.ArtifactChangelogFilesReq{GitCommitID: gitCommitID}
+	if options != nil {
+		req.Page = options.Page
+		req.PageSize = options.PageSize
+	}
+	if err := s.httpClient.Post("/aiplorer/artifact/commit-diff-files", req, &response); err != nil {
+		return nil, utils.NewAPIError("failed to get artifact changelog files", err)
 	}
 	if response.Code != 0 {
 		return nil, utils.NewAPIError(response.Msg, nil)
