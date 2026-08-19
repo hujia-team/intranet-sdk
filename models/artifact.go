@@ -51,6 +51,7 @@ type ArtifactInfo struct {
 	Platform         *string                  `json:"platform,omitempty"`
 	ProjectName      *string                  `json:"projectName,omitempty"`
 	IsVirtual        *bool                    `json:"isVirtual,omitempty"`
+	IsFileDeleted    *bool                    `json:"isFileDeleted,omitempty"`
 	ModulePath       *string                  `json:"modulePath,omitempty"`
 	SemanticVersion  *string                  `json:"semanticVersion,omitempty"`
 	Tags             *string                  `json:"tags,omitempty"`

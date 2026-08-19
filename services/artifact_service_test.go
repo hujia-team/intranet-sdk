@@ -44,15 +44,33 @@ func TestListArtifacts(t *testing.T) {
 		if payload["page"].(float64) != 1 || payload["pageSize"].(float64) != 20 {
 			t.Fatalf("unexpected payload: %#v", payload)
 		}
-		_, _ = w.Write([]byte(`{"code":0,"data":{"total":1,"data":[{"id":12,"name":"artifact-a"}]}}`))
+		_, _ = w.Write([]byte(`{"code":0,"data":{"total":1,"data":[{"id":12,"name":"artifact-a","isFileDeleted":true}]}}`))
 	})
 
 	result, err := service.ListArtifacts(&models.ArtifactListReq{Page: 1, PageSize: 20})
 	if err != nil {
 		t.Fatalf("ListArtifacts error: %v", err)
 	}
-	if result.Total != 1 || result.Data[0].Name == nil || *result.Data[0].Name != "artifact-a" {
+	if result.Total != 1 || result.Data[0].Name == nil || *result.Data[0].Name != "artifact-a" || result.Data[0].IsFileDeleted == nil || !*result.Data[0].IsFileDeleted {
 		t.Fatalf("unexpected result: %#v", result)
+	}
+}
+
+func TestCreateArtifactPreservesFileDeletedState(t *testing.T) {
+	service := newArtifactTestService(t, func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/aiplorer/artifact/create" {
+			t.Fatalf("unexpected path: %s", r.URL.Path)
+		}
+		payload := decodeBody(t, r)
+		if deleted, ok := payload["isFileDeleted"].(bool); !ok || !deleted {
+			t.Fatalf("expected isFileDeleted=true, payload: %#v", payload)
+		}
+		_, _ = w.Write([]byte(`{"code":0,"msg":"created"}`))
+	})
+
+	isFileDeleted := true
+	if _, err := service.CreateArtifact(&models.ArtifactInfo{IsFileDeleted: &isFileDeleted}); err != nil {
+		t.Fatalf("CreateArtifact error: %v", err)
 	}
 }
 
