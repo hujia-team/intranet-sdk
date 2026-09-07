@@ -17,6 +17,7 @@ type Client struct {
 	Artifact          services.ArtifactService
 	ClawSkill         services.ClawSkillService
 	MultiRepoMergeSet services.MultiRepoMergeSetService
+	Image             services.ImageService
 }
 
 func (c *Client) HTTPClient() *client.HTTPClient {
@@ -48,6 +49,7 @@ func NewClient(options ...Option) (*Client, error) {
 	artifactService := services.NewArtifactService(httpClient)
 	clawSkillService := services.NewClawSkillService(httpClient)
 	multiRepoMergeSetService := services.NewMultiRepoMergeSetService(httpClient)
+	imageService := services.NewImageService(httpClient)
 
 	return &Client{
 		client:            httpClient,
@@ -57,6 +59,7 @@ func NewClient(options ...Option) (*Client, error) {
 		Artifact:          artifactService,
 		ClawSkill:         clawSkillService,
 		MultiRepoMergeSet: multiRepoMergeSetService,
+		Image:             imageService,
 	}, nil
 }
 
