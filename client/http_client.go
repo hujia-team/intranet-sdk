@@ -8,6 +8,7 @@ import (
 	"io"
 	"mime/multipart"
 	"net/http"
+	"net/url"
 	"sync"
 	"time"
 
@@ -121,6 +122,31 @@ func (c *HTTPClient) Do(method, endpoint string, body interface{}, result interf
 // Get sends a GET request to the specified endpoint.
 func (c *HTTPClient) Get(endpoint string, result interface{}) error {
 	return c.Do("GET", endpoint, nil, result)
+}
+
+// GetWithQuery sends a GET request with URL query parameters.
+//
+// The existing Get method intentionally remains unchanged for compatibility.
+// Query values are encoded with net/url so callers do not need to concatenate
+// or escape query strings themselves.
+func (c *HTTPClient) GetWithQuery(endpoint string, query url.Values, result interface{}) error {
+	if len(query) == 0 {
+		return c.Get(endpoint, result)
+	}
+
+	parsed, err := url.Parse(endpoint)
+	if err != nil {
+		return utils.NewInternalError("failed to parse endpoint", err)
+	}
+
+	values := parsed.Query()
+	for key, queryValues := range query {
+		for _, value := range queryValues {
+			values.Add(key, value)
+		}
+	}
+	parsed.RawQuery = values.Encode()
+	return c.Get(parsed.String(), result)
 }
 
 // Post sends a POST request to the specified endpoint with the given body.

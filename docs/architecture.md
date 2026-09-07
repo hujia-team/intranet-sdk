@@ -27,12 +27,14 @@ docs/                    文档
   - `ApiKey`
   - `Artifact`
   - `ClawSkill`
+  - `Image`
 
 ### `client/`
 
 - 封装 HTTP 请求
 - 统一处理认证头
 - 统一处理错误状态码
+- 通过 `GetWithQuery` 统一编码 GET 请求的 URL query 参数
 
 认证优先级：
 

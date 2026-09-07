@@ -42,6 +42,7 @@ if err != nil {
 - `sdk.ApiKey`
 - `sdk.Artifact`
 - `sdk.ClawSkill`
+- `sdk.Image`
 
 使用制品查询、下载、标签或 changelog 能力时，建议先看
 `sdk.Artifact` 接口和 `models` 类型定义，再让 AI 按签名生成脚本。
@@ -57,6 +58,26 @@ if err != nil {
 if userInfo.Username != nil {
 	fmt.Printf("username: %s\n", *userInfo.Username)
 }
+```
+
+## OCI 镜像查询
+
+通过 `sdk.Image.ListImages` 查询 OCI 镜像元数据。请求参数会编码为
+`GET /api/v1/images` 的 URL query；传入 `nil` 时使用服务端默认分页。
+
+支持的查询字段包括 `page_num`、`page_size`、`git_repo`、`git_branch`、
+`img_fullname`、`digest`、`git_commit_short_hash`、`pipeline_id` 和 `job_id`。
+
+```go
+images, err := sdk.Image.ListImages(&models.ImageListReq{
+	PageNum:  &pageNum,
+	PageSize: &pageSize,
+	GitRepo:  &gitRepo,
+})
+if err != nil {
+	return err
+}
+fmt.Printf("image total: %d\n", images.Total)
 ```
 
 ## 错误处理
