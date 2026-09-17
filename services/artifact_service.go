@@ -42,7 +42,7 @@ type ArtifactService interface {
 	DownloadByName(name string, lookup *models.ArtifactLookupOptions, destination string) (*models.ArtifactDownloadPlan, error)
 	GetVersionMetadataByCommitHash(commitHash string, lookup *models.ArtifactLookupOptions) (*models.ArtifactVersionMetadataInfo, error)
 	GetChildArtifactHashesByCommitHash(commitHash string, lookup *models.ArtifactLookupOptions) (*models.ArtifactChildHashesInfo, error)
-	GetArtifactCommitDiff(artifactIDA, artifactIDB uint64) (*models.ArtifactCommitDiffInfo, error)
+	GetArtifactCommitDiff(artifactIDA, artifactIDB uint64, options ...*models.ArtifactCommitDiffOptions) (*models.ArtifactCommitDiffInfo, error)
 	GetArtifactChangelog(artifactIDA, artifactIDB uint64, options *models.ArtifactChangelogOptions) (*models.ArtifactChangelogInfo, error)
 	GetArtifactChangelogFiles(gitCommitID uint64, options *models.ArtifactChangelogFilesOptions) (*models.ArtifactChangelogFilesInfo, error)
 	GetArtifactTagSchema(version string) (*models.ArtifactTagSchemaInfo, error)
@@ -366,16 +366,20 @@ func (s *artifactService) GetChildArtifactHashesByCommitHash(commitHash string, 
 	return result, nil
 }
 
-func (s *artifactService) GetArtifactCommitDiff(artifactIDA, artifactIDB uint64) (*models.ArtifactCommitDiffInfo, error) {
+func (s *artifactService) GetArtifactCommitDiff(artifactIDA, artifactIDB uint64, options ...*models.ArtifactCommitDiffOptions) (*models.ArtifactCommitDiffInfo, error) {
 	var response struct {
 		Code int                           `json:"code"`
 		Msg  string                        `json:"msg"`
 		Data models.ArtifactCommitDiffInfo `json:"data"`
 	}
-	if err := s.httpClient.Post("/aiplorer/artifact/commit-diff", &models.ArtifactCommitDiffReq{
+	req := &models.ArtifactCommitDiffReq{
 		ArtifactIDA: artifactIDA,
 		ArtifactIDB: artifactIDB,
-	}, &response); err != nil {
+	}
+	if len(options) > 0 && options[0] != nil {
+		req.CompareMode = compareModePtr(options[0].CompareMode)
+	}
+	if err := s.httpClient.Post("/aiplorer/artifact/commit-diff", req, &response); err != nil {
 		return nil, utils.NewAPIError("failed to get artifact commit diff", err)
 	}
 	if response.Code != 0 {
@@ -398,6 +402,7 @@ func (s *artifactService) GetArtifactChangelog(artifactIDA, artifactIDB uint64, 
 		req.Page = options.Page
 		req.PageSize = options.PageSize
 		req.RepositoryID = options.RepositoryID
+		req.CompareMode = compareModePtr(options.CompareMode)
 	}
 	if err := s.httpClient.Post("/aiplorer/artifact/commit-diff-v2", req, &response); err != nil {
 		return nil, utils.NewAPIError("failed to get artifact changelog", err)
@@ -828,4 +833,13 @@ func mustJSON(v any) string {
 
 func stringPtr(v string) *string {
 	return &v
+}
+
+// compareModePtr keeps the field absent when the caller did not pick a mode,
+// so the server keeps applying its default strategy.
+func compareModePtr(mode string) *string {
+	if mode == "" {
+		return nil
+	}
+	return stringPtr(mode)
 }

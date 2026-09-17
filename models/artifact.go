@@ -222,11 +222,23 @@ type ArtifactCommitDiffInfo struct {
 	RepoDiffs        []RepoDiff `json:"repoDiffs"`
 }
 
-// ArtifactChangelogOptions configures changelog commit list pagination.
+// ArtifactCommitDiffOptions configures commit diff requests.
+type ArtifactCommitDiffOptions struct {
+	// CompareMode selects how commit lineage is compared.
+	// Supported values are "direct" (default) and "distant".
+	// An empty value keeps the server default.
+	CompareMode string
+}
+
+// ArtifactChangelogOptions configures changelog commit list requests.
 type ArtifactChangelogOptions struct {
 	Page         *uint64
 	PageSize     *uint64
 	RepositoryID *uint64
+	// CompareMode selects how commit lineage is compared.
+	// Supported values are "direct" (default) and "distant".
+	// An empty value keeps the server default.
+	CompareMode string
 }
 
 // ArtifactChangelogFilesOptions configures changelog file list pagination.
@@ -309,8 +321,9 @@ type IDReq struct {
 
 // ArtifactCommitDiffReq compares two artifacts.
 type ArtifactCommitDiffReq struct {
-	ArtifactIDA uint64 `json:"artifactIdA"`
-	ArtifactIDB uint64 `json:"artifactIdB"`
+	ArtifactIDA uint64  `json:"artifactIdA"`
+	ArtifactIDB uint64  `json:"artifactIdB"`
+	CompareMode *string `json:"compareMode,omitempty"`
 }
 
 // ArtifactChangelogReq requests paged changelog commits between two artifacts.
@@ -320,6 +333,7 @@ type ArtifactChangelogReq struct {
 	Page         *uint64 `json:"page,omitempty"`
 	PageSize     *uint64 `json:"pageSize,omitempty"`
 	RepositoryID *uint64 `json:"repositoryId,omitempty"`
+	CompareMode  *string `json:"compareMode,omitempty"`
 }
 
 // ArtifactChangelogFilesReq requests files for a changelog commit.
