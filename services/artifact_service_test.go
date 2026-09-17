@@ -418,6 +418,10 @@ func TestGetArtifactChangelogAndFiles(t *testing.T) {
 			if payload["repositoryId"].(float64) != 7 {
 				t.Fatalf("unexpected repository payload: %#v", payload)
 			}
+			mode, ok := payload["compareMode"].(string)
+			if !ok || mode != "distant" {
+				t.Fatalf("unexpected compare mode payload: %#v", payload)
+			}
 			_, _ = w.Write([]byte(`{"code":0,"data":{"olderArtifactId":10,"newerArtifactId":12,"changedRepoCount":1,"unavailableRepoCount":1,"unavailableRepos":[{"repositoryId":9,"reason":"missing compare cache"}],"total":1,"data":[{"id":33,"gitlabProjectId":"100","repositoryId":7,"repositoryName":"repo-a","commitId":"abcdef","commitShortId":"abcdef0","title":"fix bug","authorName":"Alice","committedAt":1770000000,"webUrl":"https://git.example.com/commit/abcdef"}]}}`))
 		case "/aiplorer/artifact/commit-diff-files":
 			payload := decodeBody(t, r)
@@ -438,6 +442,7 @@ func TestGetArtifactChangelogAndFiles(t *testing.T) {
 		Page:         &page,
 		PageSize:     &pageSize,
 		RepositoryID: &repositoryID,
+		CompareMode:  "distant",
 	})
 	if err != nil {
 		t.Fatalf("GetArtifactChangelog error: %v", err)
@@ -538,4 +543,64 @@ func TestDownloadByNameUsesResolvedArtifactID(t *testing.T) {
 	if plan.DownloadURL == nil || plan.DownloadURL.FileName != "artifact.zip" {
 		t.Fatalf("unexpected download plan: %#v", plan)
 	}
+}
+
+func TestGetArtifactCommitDiffCompareMode(t *testing.T) {
+	diffResponse := []byte(`{"code":0,"data":{"olderArtifactId":10,"newerArtifactId":12,"changedRepoCount":1,"repoDiffs":[{"repositoryId":7,"repositoryName":"repo-a","commits":[{"id":33,"commitHash":"abcdef"}]}]}}`)
+
+	t.Run("default omits compare mode", func(t *testing.T) {
+		service := newArtifactTestService(t, func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path != "/aiplorer/artifact/commit-diff" {
+				t.Fatalf("unexpected path: %s", r.URL.Path)
+			}
+			payload := decodeBody(t, r)
+			if payload["artifactIdA"].(float64) != 10 || payload["artifactIdB"].(float64) != 12 {
+				t.Fatalf("unexpected payload: %#v", payload)
+			}
+			if _, ok := payload["compareMode"]; ok {
+				t.Fatalf("unexpected compare mode payload: %#v", payload)
+			}
+			_, _ = w.Write(diffResponse)
+		})
+
+		diff, err := service.GetArtifactCommitDiff(10, 12)
+		if err != nil {
+			t.Fatalf("GetArtifactCommitDiff error: %v", err)
+		}
+		if diff.ChangedRepoCount != 1 || len(diff.RepoDiffs) != 1 {
+			t.Fatalf("unexpected diff: %#v", diff)
+		}
+		if diff.RepoDiffs[0].Commits[0].CommitHash == nil || *diff.RepoDiffs[0].Commits[0].CommitHash != "abcdef" {
+			t.Fatalf("unexpected commits: %#v", diff.RepoDiffs[0].Commits)
+		}
+	})
+
+	t.Run("distant passes compare mode", func(t *testing.T) {
+		service := newArtifactTestService(t, func(w http.ResponseWriter, r *http.Request) {
+			payload := decodeBody(t, r)
+			mode, ok := payload["compareMode"].(string)
+			if !ok || mode != "distant" {
+				t.Fatalf("unexpected compare mode payload: %#v", payload)
+			}
+			_, _ = w.Write(diffResponse)
+		})
+
+		if _, err := service.GetArtifactCommitDiff(10, 12, &models.ArtifactCommitDiffOptions{CompareMode: "distant"}); err != nil {
+			t.Fatalf("GetArtifactCommitDiff error: %v", err)
+		}
+	})
+
+	t.Run("empty compare mode stays omitted", func(t *testing.T) {
+		service := newArtifactTestService(t, func(w http.ResponseWriter, r *http.Request) {
+			payload := decodeBody(t, r)
+			if _, ok := payload["compareMode"]; ok {
+				t.Fatalf("unexpected compare mode payload: %#v", payload)
+			}
+			_, _ = w.Write(diffResponse)
+		})
+
+		if _, err := service.GetArtifactCommitDiff(10, 12, nil, &models.ArtifactCommitDiffOptions{}); err != nil {
+			t.Fatalf("GetArtifactCommitDiff error: %v", err)
+		}
+	})
 }

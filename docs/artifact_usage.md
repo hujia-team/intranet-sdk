@@ -19,6 +19,7 @@
 - `sdk.Artifact.DownloadByName`
 - `sdk.Artifact.GetVersionMetadataByCommitHash`
 - `sdk.Artifact.GetChildArtifactHashesByCommitHash`
+- `sdk.Artifact.GetArtifactCommitDiff`
 - `sdk.Artifact.GetArtifactChangelog`
 - `sdk.Artifact.GetArtifactChangelogFiles`
 - `sdk.Artifact.GetArtifactTagSchema`
@@ -267,6 +268,36 @@ for _, item := range childHashes.ChildHashes {
 1. 调 `/aiplorer/artifact/by-commit-hash`
 2. 服务端精确定位根制品
 3. 再从详情里的递归 `dependencies` 提取所有子制品的 `commit_hash`
+
+## 提交对比与 compare mode
+
+`GetArtifactCommitDiff` 对比两个制品的提交历史，默认由服务端按 `direct` 处理。
+当两个制品的提交历史出现分叉时，可以显式选择 `distant`，让服务端改用逐仓库的远距离对比：
+
+```go
+diff, err := sdk.Artifact.GetArtifactCommitDiff(
+	olderArtifactID,
+	newerArtifactID,
+	&models.ArtifactCommitDiffOptions{CompareMode: "distant"},
+)
+if err != nil {
+	return err
+}
+
+fmt.Printf("changed repos: %d\n", diff.ChangedRepoCount)
+for _, repo := range diff.RepoDiffs {
+	if repo.RepositoryName != nil {
+		fmt.Printf("repo %s: %d commits\n", *repo.RepositoryName, len(repo.Commits))
+	}
+}
+```
+
+`GetArtifactChangelog`（`/commit-diff-v2`）通过 `ArtifactChangelogOptions.CompareMode` 支持同一个取值。
+
+注意：
+
+- 不传 options，或 `CompareMode` 留空时，服务端按 `direct` 处理，与旧行为一致
+- 只支持 `direct` 和 `distant`，其它取值服务端会返回参数错误
 
 ## 标签与 schema
 
